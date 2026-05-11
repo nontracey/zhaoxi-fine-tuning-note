@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大语言模型微调系列课程</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0e1a;
+      color: #e8ecf5;
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px;
+    }
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #fff 0%, #00d4aa 50%, #00a8ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .subtitle {
+      color: #9aa4c0;
+      font-size: 16px;
+      margin-bottom: 48px;
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 960px;
+      width: 100%;
+    }
+    .card {
+      background: #131a30;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 28px;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .card:hover {
+      border-color: rgba(0,212,170,0.4);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 20px rgba(0,212,170,0.1);
+    }
+    .card-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 48px;
+      font-weight: 900;
+      color: #00d4aa;
+      opacity: 0.3;
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .card-desc {
+      font-size: 14px;
+      color: #9aa4c0;
+      line-height: 1.6;
+    }
+    .instructor {
+      margin-top: 48px;
+      font-size: 14px;
+      color: #6b7599;
+    }
+  </style>
+</head>
+<body>
+  <h1>大语言模型微调系列课程</h1>
+  <p class="subtitle">从原理到实践，全面掌握大语言模型微调技术</p>
+
+  <div class="grid">
+    <a class="card" href="01/大语言模型微调-01.html">
+      <div class="card-num">01</div>
+      <div class="card-title">微调原理精讲</div>
+      <div class="card-desc">从物理层面深入理解 Tokenization、参数矩阵、反向传播与微调决策</div>
+    </a>
+    <a class="card" href="02/大语言模型微调-02.html">
+      <div class="card-num">02</div>
+      <div class="card-title">LoRA 高效微调</div>
+      <div class="card-desc">从算力瓶颈到 LoRA 架构，再到本地工程落地与 LLaMA-Factory 部署</div>
+    </a>
+    <a class="card" href="03/大语言模型微调-03.html">
+      <div class="card-num">03</div>
+      <div class="card-title">微调数据格式与制作</div>
+      <div class="card-desc">指令微调数据结构、Alpaca/ShareGPT 格式、数据清洗与 Easy DataSet</div>
+    </a>
+    <a class="card" href="04/大语言模型微调-04.html">
+      <div class="card-num">04</div>
+      <div class="card-title">数据制作与参数解析</div>
+      <div class="card-desc">使用 EDS 制作数据集、LLaMA Factory 数据文件与微调参数详解</div>
+    </a>
+    <a class="card" href="05/大语言模型微调-05.html">
+      <div class="card-num">05</div>
+      <div class="card-title">LoRA 参数详解与训练实践</div>
+      <div class="card-desc">LoRA 核心参数、扩展模块、训练过程解读与模型合并</div>
+    </a>
+  </div>
+
+  <p class="instructor">讲师 Zilor</p>
+</body>
+</html>

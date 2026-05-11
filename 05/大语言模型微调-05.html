@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大语言模型微调-05 | LLaMA Factory LoRA 参数详解</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@300;400;500;700;900&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Fixed Navigation Bar -->
+  <nav id="navbar" class="navbar">
+    <div class="navbar-brand">大语言模型微调-05</div>
+    <div class="navbar-toc">
+      <a href="#section-1" class="nav-link">LoRA 微调核心参数</a>
+      <a href="#section-2" class="nav-link">LoRA 微调扩展模块</a>
+      <a href="#section-3" class="nav-link">微调训练过程解读</a>
+      <a href="#section-4" class="nav-link">LoRA 微调模型加载与合并</a>
+    </div>
+    <div class="navbar-instructor">Zilor</div>
+  </nav>
+
+  <!-- Cover Page -->
+  <header id="cover" class="cover">
+    <div class="cover-grid-bg"></div>
+    <div class="cover-particles" id="particles"></div>
+    <div class="cover-content">
+      <div class="cover-badge">Lesson 05</div>
+      <h1 class="cover-title">大语言模型微调</h1>
+      <div class="cover-subtitle">LLaMA Factory LoRA 参数详解与训练实践</div>
+      <div class="cover-divider"></div>
+      <div class="cover-toc">
+        <h3 class="toc-heading">课程目录</h3>
+        <ol class="toc-list">
+          <li><a href="#section-1"><span class="toc-num">01</span> LoRA 微调核心参数</a></li>
+          <li><a href="#section-2"><span class="toc-num">02</span> LoRA 微调扩展模块数</a></li>
+          <li><a href="#section-3"><span class="toc-num">03</span> 微调训练过程与 Loss 曲线图解读</a></li>
+          <li><a href="#section-4"><span class="toc-num">04</span> LoRA 微调模型加载与合并</a></li>
+        </ol>
+      </div>
+      <div class="cover-footer">
+        <span class="instructor">讲师 Zilor</span>
+      </div>
+    </div>
+    <div class="scroll-hint">
+      <span>向下滚动开始学习</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Section 1: LoRA 微调参数 -->
+    <section id="section-1" class="chapter">
+      <div class="chapter-header">
+        <div class="chapter-number">01</div>
+        <h2>LoRA 微调核心参数</h2>
+      </div>
+      <div class="chapter-divider"></div>
+
+      <!-- 1.1 LoRA 核心机制回顾 -->
+      <div id="section-1-1" class="subsection reveal">
+        <h3>LoRA 核心机制回顾</h3>
+        <p>LoRA（Low-Rank Adaptation）是一种高效的参数微调方法。它的核心思想可以概括为四个关键步骤：</p>
+
+        <!-- Animation: LoRA Mechanism -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">LoRA 旁路机制</span>
+            <button class="replay-btn" data-demo="lora-mechanism">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="lora-mechanism-demo" id="lora-mechanism">
+            <div class="lora-flow">
+              <div class="lora-node input-node">输入</div>
+              <div class="lora-split">
+                <div class="lora-path frozen-path">
+                  <div class="lora-edge edge-top"></div>
+                  <div class="lora-node frozen-node">冻结权重</div>
+                  <div class="lora-edge edge-bottom"></div>
+                </div>
+                <div class="lora-path lora-path-side">
+                  <div class="lora-edge edge-top"></div>
+                  <div class="lora-node lora-a-node">A 矩阵</div>
+                  <div class="lora-connector">x</div>
+                  <div class="lora-node lora-b-node">B 矩阵</div>
+                  <div class="lora-edge edge-bottom"></div>
+                </div>
+              </div>
+              <div class="lora-merge-node">+ 融合</div>
+              <div class="lora-node output-node">输出</div>
+            </div>
+          </div>
+        </div>
+
+        <ol class="mechanism-list">
+          <li><strong>基础权重冻结：</strong>原始权重矩阵完全冻结，不再发生任何更新。</li>
+          <li><strong>构建旁路矩阵：</strong>并联一条由两个小型矩阵（A 和 B）相乘构成的新计算通路。</li>
+          <li><strong>信号融合输出：</strong>两路计算结果直接相加，作为最终输出。</li>
+          <li><strong>仅训练旁路：</strong>反向传播中只更新轻量级的小型矩阵。</li>
+        </ol>
+        <p>参数量锐减至原来的<strong>千分之一甚至万分之一</strong>，仅需导出一个轻量级"适配器"文件即可。</p>
+      </div>
+
+      <!-- 1.2 LoRA 秩 -->
+      <div id="section-1-2" class="subsection reveal">
+        <h3>LoRA 秩（Rank）</h3>
+        <p>LoRA 秩是定义适配器基础架构的<strong>最核心指标</strong>。它决定了"旁路通道"在被压缩到最窄时的维度大小。</p>
+
+        <!-- Animation: Rank visualization -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">秩与信息容量</span>
+            <button class="replay-btn" data-demo="rank-demo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="rank-demo" id="rank-demo">
+            <div class="rank-comparison">
+              <div class="rank-panel low-rank">
+                <div class="rank-label">低秩 (Rank=8)</div>
+                <div class="rank-channel">
+                  <div class="channel-bar" data-width="20"></div>
+                  <div class="channel-info">
+                    <span class="info-tag">强正则化</span>
+                    <span class="info-tag">防过拟合</span>
+                  </div>
+                </div>
+                <div class="rank-usecase">
+                  <strong>适用：</strong>指令格式对齐、语气转换等模式化任务
+                </div>
+              </div>
+              <div class="rank-panel high-rank">
+                <div class="rank-label">高秩 (Rank=64+)</div>
+                <div class="rank-channel">
+                  <div class="channel-bar" data-width="80"></div>
+                  <div class="channel-info">
+                    <span class="info-tag">大容量</span>
+                    <span class="info-tag">复杂知识</span>
+                  </div>
+                </div>
+                <div class="rank-usecase">
+                  <strong>适用：</strong>医学报告解读、代码生成等硬核知识注入
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warn">
+          <strong>调整原则：</strong>自底向上，够用即可。从 8 或 16 起步，按需递增。警惕边际效用递减——秩超过 64 后继续增大可能适得其反。
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p>LoRA 秩是对显存消耗具有<strong>决定性影响</strong>的核心参数。参数量与秩呈线性正相关，秩从 8 提升到 64，优化器状态显存开销暴增 <strong>8 倍</strong>。</p>
+        </div>
+      </div>
+
+      <!-- 1.3 LoRA 缩放系数 -->
+      <div id="section-1-3" class="subsection reveal">
+        <h3>LoRA 缩放系数</h3>
+        <p>如果说 LoRA 秩决定了适配器的"结构大小"，那么缩放系数则完全决定了适配器在模型整体输出中<strong>"说话的音量"</strong>。</p>
+
+        <div class="formula-box">
+          <div class="formula-label">缩放倍率计算公式</div>
+          <div class="formula">缩放倍率 = 缩放系数 &divide; LoRA 秩</div>
+        </div>
+
+        <!-- Animation: Scaling coefficient -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">缩放系数对比</span>
+            <button class="replay-btn" data-demo="scale-demo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="scale-demo" id="scale-demo">
+            <div class="scale-scenarios">
+              <div class="scale-card scale-low">
+                <div class="scale-icon">
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                </div>
+                <div class="scale-title">设置过低</div>
+                <div class="scale-desc">新信号被严重压制，模型对微调充耳不闻</div>
+              </div>
+              <div class="scale-card scale-golden">
+                <div class="scale-icon">
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <div class="scale-title">黄金法则</div>
+                <div class="scale-desc">缩放系数 = 2 &times; 秩，缩放倍率固定在 2 左右</div>
+              </div>
+              <div class="scale-card scale-high">
+                <div class="scale-icon">
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="scale-title">设置过高</div>
+                <div class="scale-desc">新信号暴力接管，灾难性遗忘</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p><strong>无影响。</strong>缩放系数仅执行标量乘法，不增加网络层数，不产生新状态。</p>
+        </div>
+      </div>
+
+      <!-- 1.4 LoRA 随机丢弃 -->
+      <div id="section-1-4" class="subsection reveal">
+        <h3>LoRA 随机丢弃（Dropout）</h3>
+        <p>随机丢弃是一种经典的<strong>正则化技术</strong>，用于防止模型在有限训练集上"死记硬背"。它按设定概率随机"屏蔽"LoRA 矩阵的一部分输出元素。</p>
+
+        <!-- Animation: Dropout -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">随机丢弃过程</span>
+            <button class="replay-btn" data-demo="dropout-demo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="dropout-demo" id="dropout-demo">
+            <div class="dropout-grid" id="dropout-grid"></div>
+            <div class="dropout-info">
+              <span>丢弃率: <strong id="dropout-rate">0.1</strong></span>
+              <span>激活单元: <strong id="dropout-active">18</strong> / 20</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <strong>决策依据：</strong>数据集规模与质量。数据少（几百条）→ 开启 0.05~0.1；数据海量（十万级+）→ 保持为 0。
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p>显存影响<strong>微乎其微</strong>。但会轻微延长总训练时间——模型需要更多迭代步数才能达到相同损失。</p>
+        </div>
+      </div>
+
+      <!-- 1.5 LoRA+ 学习率比例 -->
+      <div id="section-1-5" class="subsection reveal">
+        <h3>LoRA+ 学习率比例</h3>
+        <p>这是五个参数中最具<strong>学术深度</strong>的参数。默认 <code>0</code> 表示传统 LoRA 模式；非零值将激活全新的梯度更新策略。</p>
+
+        <div class="callout callout-dark">
+          <strong>核心原理：</strong>B 矩阵初始化为全零，导致训练初期 A 和 B 学习步调严重脱节。LoRA+ 将 B 矩阵的专属学习率放大 <strong>16 倍</strong>，打破收敛瓶颈。
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p><strong>无显存消耗。</strong>可加速收敛，实质节省约 30% 的训练时间。</p>
+        </div>
+      </div>
+
+      <!-- 1.6 新建适配器 -->
+      <div id="section-1-6" class="subsection reveal">
+        <h3>新建适配器</h3>
+        <p>这是一个纯粹的工程化<strong>工作流管理</strong>选项，对"增量学习"或"多阶段微调"至关重要。</p>
+
+        <div class="comparison-box">
+          <div class="comparison-item">
+            <div class="comp-badge">未勾选</div>
+            <h4>连续叠加训练</h4>
+            <p>加载已有适配器，在已积累的知识基础上继续训练。适用于增量训练、断点恢复。</p>
+          </div>
+          <div class="comparison-item highlight">
+            <div class="comp-badge">勾选</div>
+            <h4>重新初始化</h4>
+            <p>抛弃旧适配器状态，生成全新的 A 和 B 矩阵。适用于与之前任务无关的全新实验。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: LoRA 高级参数 -->
+    <section id="section-2" class="chapter chapter-alt">
+      <div class="chapter-header">
+        <div class="chapter-number">02</div>
+        <h2>LoRA 微调扩展模块</h2>
+      </div>
+      <div class="chapter-divider"></div>
+
+      <!-- 2.1 rsLoRA -->
+      <div id="section-2-1" class="subsection reveal">
+        <h3>使用 rsLoRA</h3>
+        <p>rsLoRA（秩稳定 LoRA）专门解决标准 LoRA 在<strong>极高秩</strong>时的数学崩溃问题。</p>
+
+        <div class="formula-box">
+          <div class="formula-label">标准 LoRA vs rsLoRA</div>
+          <div class="formula-compare">
+            <div class="formula-old">
+              <div class="formula-label-small">标准 LoRA</div>
+              <div class="formula">缩放 = 系数 &divide; 秩</div>
+            </div>
+            <div class="formula-arrow">&rarr;</div>
+            <div class="formula-new">
+              <div class="formula-label-small">rsLoRA</div>
+              <div class="formula">缩放 = 系数 &divide; &radic;<span class="sqrt-line">秩</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warn">
+          <strong>何时必须勾选：</strong>Rank &ge; 128 时。开启后"缩放系数 = 2 &times; 秩"的法则不再适用，通常将缩放系数设为固定常数（16 或 32）。
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p><strong>完全零影响。</strong>平方根运算仅在初始化时确定一次缩放常量。</p>
+        </div>
+      </div>
+
+      <!-- 2.2 DoRA -->
+      <div id="section-2-2" class="subsection reveal">
+        <h3>使用 DoRA</h3>
+        <p>DoRA（权重分解 LoRA）将预训练权重剥离为纯粹的<strong>"方向矩阵"</strong>和一维的<strong>"长度向量"</strong>，实现解耦训练。</p>
+
+        <!-- Animation: DoRA decomposition -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">DoRA 权重分解</span>
+            <button class="replay-btn" data-demo="dora-demo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="dora-demo" id="dora-demo">
+            <div class="dora-flow">
+              <div class="dora-step">
+                <div class="dora-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+                </div>
+                <div class="dora-label">预训练权重</div>
+              </div>
+              <div class="dora-arrow">&rarr;</div>
+              <div class="dora-step">
+                <div class="dora-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+                </div>
+                <div class="dora-label">SVD 分解</div>
+              </div>
+              <div class="dora-arrow">&rarr;</div>
+              <div class="dora-split">
+                <div class="dora-branch">
+                  <div class="dora-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20V4M8 8l4-4 4 4"/></svg>
+                  </div>
+                  <div class="dora-label">方向矩阵<br><small>LoRA 调整</small></div>
+                </div>
+                <div class="dora-branch">
+                  <div class="dora-icon">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12h16M16 8l4 4-4 4"/></svg>
+                  </div>
+                  <div class="dora-label">长度向量<br><small>独立训练</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <strong>建议：</strong>作为首选升级方案。在极低秩（Rank=4~8）下仍能展现强大学习能力，几乎可视为标准 LoRA 的无损升级版。
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p>显存消耗<strong>轻微增加</strong>（几十 MB）。训练吞吐量下降约 10%~20%，换取性能提升。</p>
+        </div>
+      </div>
+
+      <!-- 2.3 PiSSA -->
+      <div id="section-2-3" class="subsection reveal">
+        <h3>使用 PiSSA</h3>
+        <p>PiSSA 完全颠覆了 LoRA 矩阵的<strong>初始化状态</strong>。它使用 SVD 提取原始权重的"核心骨架"来初始化旁路矩阵，而非随机噪声。</p>
+
+        <div class="comparison-box">
+          <div class="comparison-item">
+            <div class="comp-badge">标准 LoRA</div>
+            <h4>随机初始化</h4>
+            <p>A 矩阵随机噪声 + B 矩阵全零。旁路通道初始无任何知识结构。</p>
+          </div>
+          <div class="comparison-item highlight">
+            <div class="comp-badge">PiSSA</div>
+            <h4>SVD 核心骨架初始化</h4>
+            <p>提取最重要特征填充 A/B 矩阵。训练第 1 秒就具备核心知识结构。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warn">
+          <strong>互斥限制：</strong>PiSSA 和 DoRA 都是对底层计算流的深度改造，<strong>两者互斥</strong>，不能同时使用。
+        </div>
+
+        <div class="metric-box">
+          <div class="metric-title">对显存的影响</div>
+          <p>SVD 分解是<strong>极度消耗内存/显存</strong>的操作，可能在训练开始前就导致崩溃。正式训练后显存占用与标准 LoRA 一致。</p>
+        </div>
+      </div>
+
+      <!-- 2.4 LoRA 作用模块 -->
+      <div id="section-2-4" class="subsection reveal">
+        <h3>LoRA 作用模块</h3>
+        <p>决定 LoRA 旁路矩阵要安装到神经网络的哪些具体"房间"里。</p>
+
+        <!-- Animation: Transformer modules -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">Transformer 模块挂载点</span>
+            <button class="replay-btn" data-demo="module-demo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="module-demo" id="module-demo">
+            <div class="transformer-block">
+              <div class="block-label">Transformer Layer</div>
+              <div class="block-section attn-section">
+                <div class="block-label-small">注意力机制</div>
+                <div class="module-cells">
+                  <div class="module-cell" data-module="q_proj">q_proj</div>
+                  <div class="module-cell" data-module="k_proj">k_proj</div>
+                  <div class="module-cell" data-module="v_proj">v_proj</div>
+                  <div class="module-cell" data-module="o_proj">o_proj</div>
+                </div>
+              </div>
+              <div class="block-section ffn-section">
+                <div class="block-label-small">前馈神经网络</div>
+                <div class="module-cells">
+                  <div class="module-cell" data-module="gate_proj">gate_proj</div>
+                  <div class="module-cell" data-module="up_proj">up_proj</div>
+                  <div class="module-cell" data-module="down_proj">down_proj</div>
+                </div>
+              </div>
+            </div>
+            <div class="module-legend">
+              <span class="legend-item active">默认全层微调 (all)</span>
+              <span class="legend-item conservative">保守模式 (q, v only)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <strong>现代标准实践：</strong>全层微调是工业界<strong>绝对首选配置</strong>。前馈神经网络是存储事实知识的核心区域，仅微调注意力层远远不够。
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: 训练过程与 Loss 曲线图解读 -->
+    <section id="section-3" class="chapter">
+      <div class="chapter-header">
+        <div class="chapter-number">03</div>
+        <h2>微调训练过程与 Loss 曲线图解读</h2>
+      </div>
+      <div class="chapter-divider"></div>
+
+      <div id="section-3-1" class="subsection reveal">
+        <h3>训练参数解读</h3>
+        <p>开始正式训练前，系统会打印关键训练参数。理解这些指标是监控训练过程的基础。</p>
+
+        <div class="params-grid">
+          <div class="param-card">
+            <div class="param-name">Num examples</div>
+            <div class="param-value">74</div>
+            <div class="param-desc">训练样本总数</div>
+          </div>
+          <div class="param-card">
+            <div class="param-name">Num Epochs</div>
+            <div class="param-value">6</div>
+            <div class="param-desc">训练轮数</div>
+          </div>
+          <div class="param-card">
+            <div class="param-name">Batch Size / Device</div>
+            <div class="param-value">1</div>
+            <div class="param-desc">单设备实时批处理大小</div>
+          </div>
+          <div class="param-card">
+            <div class="param-name">Total Train Batch</div>
+            <div class="param-value">16</div>
+            <div class="param-desc">有效批大小（含梯度累积）</div>
+          </div>
+          <div class="param-card">
+            <div class="param-name">Gradient Accum.</div>
+            <div class="param-value">16</div>
+            <div class="param-desc">梯度累积步数（时间换显存）</div>
+          </div>
+          <div class="param-card">
+            <div class="param-name">Optimization Steps</div>
+            <div class="param-value">36</div>
+            <div class="param-desc">总权重更新步数</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="section-3-2" class="subsection reveal">
+        <h3>Loss 曲线图解读</h3>
+        <p>Loss 曲线是判断训练是否顺利的<strong>最重要指标</strong>。</p>
+
+        <!-- Animation: Loss curve -->
+        <div class="demo-block">
+          <div class="demo-header">
+            <span class="demo-tag">动画演示</span>
+            <span class="demo-title">Loss 下降曲线</span>
+            <button class="replay-btn" data-demo="loss-demo">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              重播
+            </button>
+          </div>
+          <div class="loss-demo" id="loss-demo">
+            <svg class="loss-chart" viewBox="0 0 500 250" id="loss-chart">
+              <defs>
+                <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#00d4aa"/>
+                  <stop offset="100%" style="stop-color:#00a8ff"/>
+                </linearGradient>
+                <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style="stop-color:#00d4aa;stop-opacity:0.3"/>
+                  <stop offset="100%" style="stop-color:#00d4aa;stop-opacity:0"/>
+                </linearGradient>
+              </defs>
+              <!-- Grid -->
+              <line x1="50" y1="20" x2="50" y2="220" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+              <line x1="50" y1="220" x2="480" y2="220" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+              <line x1="50" y1="70" x2="480" y2="70" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+              <line x1="50" y1="120" x2="480" y2="120" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+              <line x1="50" y1="170" x2="480" y2="170" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+              <!-- Y axis labels -->
+              <text x="40" y="24" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">2.0</text>
+              <text x="40" y="74" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">1.5</text>
+              <text x="40" y="124" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">1.0</text>
+              <text x="40" y="174" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">0.5</text>
+              <text x="40" y="224" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">0.0</text>
+              <!-- X axis labels -->
+              <text x="50" y="240" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">Epoch 0</text>
+              <text x="160" y="240" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">Epoch 2</text>
+              <text x="270" y="240" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">Epoch 4</text>
+              <text x="430" y="240" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="10">Epoch 6</text>
+              <!-- Chart elements (animated) -->
+              <path class="loss-area" id="loss-area" fill="url(#areaGrad)" d=""/>
+              <path class="loss-line" id="loss-line" fill="none" stroke="url(#lineGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d=""/>
+              <path class="loss-smooth" id="loss-smooth" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-dasharray="4,4" d=""/>
+              <!-- Data points -->
+              <g class="loss-points" id="loss-points"></g>
+            </svg>
+            <div class="loss-legend">
+              <span class="legend-dot original"></span> Original（真实值）
+              <span class="legend-dot smoothed" style="margin-left: 16px;"></span> Smoothed（平滑趋势）
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <strong>健康信号：</strong>Loss 从 1.93 平稳下降至 0.55，无明显震荡或 NaN。学习率从 4.78e-4 逐渐衰减至 4.77e-5，说明配置了学习率衰减策略。
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: 微调模型加载与合并 -->
+    <section id="section-4" class="chapter chapter-alt">
+      <div class="chapter-header">
+        <div class="chapter-number">04</div>
+        <h2>LoRA 微调模型加载与合并</h2>
+      </div>
+      <div class="chapter-divider"></div>
+
+      <div id="section-4-1" class="subsection reveal">
+        <h3>输出文件结构</h3>
+        <p>微调完成后，<code>saves</code> 目录下会生成一系列文件。理解每个文件的作用是工程实践的基本功。</p>
+
+        <div class="file-table">
+          <div class="file-category">
+            <div class="file-category-title">核心模型文件</div>
+            <div class="file-row">
+              <span class="file-name">adapter_model.safetensors</span>
+              <span class="file-size">66MB</span>
+              <span class="file-desc">LoRA 权重文件，最重要的输出文件</span>
+            </div>
+            <div class="file-row">
+              <span class="file-name">adapter_config.json</span>
+              <span class="file-size">1KB</span>
+              <span class="file-desc">LoRA 配置信息（rank, alpha, target_modules）</span>
+            </div>
+          </div>
+          <div class="file-category">
+            <div class="file-category-title">分词器相关</div>
+            <div class="file-row">
+              <span class="file-name">tokenizer.json</span>
+              <span class="file-size">19MB</span>
+              <span class="file-desc">分词器词汇表文件</span>
+            </div>
+            <div class="file-row">
+              <span class="file-name">tokenizer_config.json</span>
+              <span class="file-size">1KB</span>
+              <span class="file-desc">分词器配置</span>
+            </div>
+          </div>
+          <div class="file-category">
+            <div class="file-category-title">训练结果</div>
+            <div class="file-row">
+              <span class="file-name">all_results.json</span>
+              <span class="file-size">-</span>
+              <span class="file-desc">训练汇总结果（最终 loss、耗时、tokens 处理量）</span>
+            </div>
+            <div class="file-row">
+              <span class="file-name">training_loss.png</span>
+              <span class="file-size">-</span>
+              <span class="file-desc">训练损失曲线图</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="section-4-2" class="subsection reveal">
+        <h3>推理使用与模型合并</h3>
+
+        <div class="comparison-box">
+          <div class="comparison-item">
+            <div class="comp-badge">单独加载</div>
+            <h4>动态加载 LoRA</h4>
+            <p>同时加载基础模型和 LoRA 适配器。适合测试微调效果、多 LoRA 动态服务。</p>
+          </div>
+          <div class="comparison-item highlight">
+            <div class="comp-badge">模型合并</div>
+            <h4>离线合并</h4>
+            <p>将 LoRA 权重与基础模型参数直接加总，生成单一标准模型文件。</p>
+            <ul class="merge-benefits">
+              <li>提升推理速度</li>
+              <li>提高部署兼容性</li>
+              <li>为模型量化做准备</li>
+              <li>降低系统复杂度</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout callout-dark">
+          <strong>生产最佳实践：</strong>先在全精度状态下合并，再对合并后的单一模型进行量化。这样能最大限度保留微调所学到的知识。
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div class="footer-brand">大语言模型微调-05</div>
+      <div class="footer-divider"></div>
+      <div class="footer-instructor">讲师 Zilor</div>
+    </div>
+  </footer>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>

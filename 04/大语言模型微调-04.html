@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大语言模型微调-04 · Zilor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ===== NAVBAR ===== -->
+<nav class="navbar" id="navbar">
+  <div class="nav-brand">大语言模型微调-04</div>
+  <ul class="nav-menu" id="navMenu">
+    <li class="nav-item has-dropdown">
+      <a class="nav-link" href="#ch1">使用 EDS 制作微调数据集</a>
+      <ul class="dropdown">
+        <li><a href="#config">配置数据集项目</a></li>
+        <li><a href="#audience">生成受众对</a></li>
+        <li><a href="#export">生成问答对和数据导出</a></li>
+      </ul>
+    </li>
+    <li class="nav-item has-dropdown">
+      <a class="nav-link" href="#ch2">LLaMA Factory 数据文件解析</a>
+      <ul class="dropdown">
+        <li><a href="#dataset-info">dataset_info.json</a></li>
+        <li><a href="#alpaca">alpaca.json</a></li>
+        <li><a href="#sharegpt">sharegpt.json</a></li>
+        <li><a href="#multilingual">multilingual-thinking.json</a></li>
+        <li><a href="#task-config">task-config.json</a></li>
+      </ul>
+    </li>
+    <li class="nav-item has-dropdown">
+      <a class="nav-link" href="#ch3">LLaMA Factory 微调参数解析</a>
+      <ul class="dropdown">
+        <li><a href="#core-params">核心超参数</a></li>
+        <li><a href="#lr">学习率</a></li>
+        <li><a href="#epochs">训练轮数</a></li>
+        <li><a href="#dtype">计算类型</a></li>
+        <li><a href="#base-params">基础参数</a></li>
+        <li><a href="#train-params">训练参数</a></li>
+        <li><a href="#cutoff">截断长度</a></li>
+        <li><a href="#batch">批处理大小</a></li>
+        <li><a href="#grad-accum">梯度累积</a></li>
+        <li><a href="#val-split">验证集比例</a></li>
+        <li><a href="#scheduler">学习率调节器</a></li>
+      </ul>
+    </li>
+  </ul>
+  <div class="nav-instructor">Zilor</div>
+</nav>
+
+<!-- ===== COVER ===== -->
+<section class="cover" id="cover">
+  <canvas id="coverCanvas"></canvas>
+  <div class="cover-content">
+    <div class="cover-badge">第 04 讲</div>
+    <h1 class="cover-title">大语言模型<br><span class="accent">微调</span></h1>
+    <p class="cover-subtitle">Fine-tuning Large Language Models</p>
+    <div class="cover-instructor">
+      <span class="instructor-label">讲师</span>
+      <span class="instructor-name">Zilor</span>
+    </div>
+    <div class="cover-toc">
+      <div class="toc-title">本节课程内容</div>
+      <div class="toc-grid">
+        <div class="toc-item" onclick="scrollToSection('ch1')">
+          <span class="toc-num">01</span>
+          <span class="toc-text">使用 EDS 制作微调数据集</span>
+        </div>
+        <div class="toc-item" onclick="scrollToSection('ch2')">
+          <span class="toc-num">02</span>
+          <span class="toc-text">LLaMA Factory 数据文件解析</span>
+        </div>
+        <div class="toc-item" onclick="scrollToSection('ch3')">
+          <span class="toc-num">03</span>
+          <span class="toc-text">LLaMA Factory 微调参数解析</span>
+        </div>
+      </div>
+    </div>
+    <div class="cover-recap">
+      <div class="recap-label">上节课回顾</div>
+      <div class="recap-items">
+        <span class="recap-tag">指令 · 输入 · 输出</span>
+        <span class="recap-tag">Alpaca 格式</span>
+        <span class="recap-tag">ShareGPT 格式</span>
+        <span class="recap-tag">数据清洗</span>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-hint">↓ 开始学习</div>
+</section>
+
+<!-- ===== CHAPTER 1 ===== -->
+<section class="chapter" id="ch1">
+  <div class="chapter-divider">
+    <div class="divider-line"></div>
+    <div class="divider-badge">CHAPTER 01</div>
+    <div class="divider-line"></div>
+  </div>
+  <div class="chapter-header">
+    <h2 class="chapter-title">使用 EDS 制作微调数据集</h2>
+    <p class="chapter-desc">Easy DataSet 工具将非结构化文档高效转换为符合标准的高质量微调数据集</p>
+  </div>
+
+  <!-- 配置数据集项目 -->
+  <div class="section-block" id="config">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">1.1</span> 配置数据集项目</h3>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-icon">01</div>
+          <div class="step-content">
+            <h4>创建新项目</h4>
+            <p>项目名称：<code>产品文档</code></p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">02</div>
+          <div class="step-content">
+            <h4>添加新模型</h4>
+            <p>供应商：阿里云百炼<br>模型 ID：<code>qwen3.5-plus</code><br>最大 Token：<code>64K</code></p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">03</div>
+          <div class="step-content">
+            <h4>任务配置</h4>
+            <p>文本分块：Markdown 结构分块<br>并发限制：尽量调多加速生成</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">04</div>
+          <div class="step-content">
+            <h4>提示词配置</h4>
+            <p>修改【问题设计】，要求问题包含主体全称，避免代词和简称</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">05</div>
+          <div class="step-content">
+            <h4>文件处理</h4>
+            <p>选择配置的 Qwen3.5 模型<br>准备上传文档</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-icon">06</div>
+          <div class="step-content">
+            <h4>上传文档</h4>
+            <p>上传 <code>产品文档.md</code><br>等待处理后可手动调整分块</p>
+          </div>
+        </div>
+      </div>
+      <div class="info-box">
+        <div class="info-icon">💡</div>
+        <div class="info-text">
+          <strong>为什么要分块？</strong>
+          分块能统一处理不同长度的文档、突破模型输入限制、提升向量表示质量、提高检索精准度，并优化计算资源利用。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成受众对 -->
+  <div class="section-block alt-bg" id="audience">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">1.2</span> 生成受众对</h3>
+      <p class="section-lead">在高质量微调中，<strong>受众体</strong>决定了模型回答的颗粒度、语气和专业深度。</p>
+
+      <div class="audience-dimensions">
+        <div class="dimension-card">
+          <div class="dim-icon">🧠</div>
+          <h4>认知水平</h4>
+          <div class="dim-row">
+            <span class="dim-tag tag-easy">小白受众</span>
+            <span class="dim-desc">通俗比喻、杜绝黑话</span>
+          </div>
+          <div class="dim-row">
+            <span class="dim-tag tag-expert">专家受众</span>
+            <span class="dim-desc">高信息密度、精准术语</span>
+          </div>
+        </div>
+        <div class="dimension-card">
+          <div class="dim-icon">❤️</div>
+          <h4>场景与情绪</h4>
+          <div class="dim-row">
+            <span class="dim-tag tag-urgent">焦急求助型</span>
+            <span class="dim-desc">直奔主题，安抚情绪</span>
+          </div>
+          <div class="dim-row">
+            <span class="dim-tag tag-explore">探索闲聊型</span>
+            <span class="dim-desc">详尽引导，激发探索欲</span>
+          </div>
+        </div>
+        <div class="dimension-card">
+          <div class="dim-icon">📋</div>
+          <h4>输出格式</h4>
+          <div class="dim-row">
+            <span class="dim-tag tag-biz">业务人员</span>
+            <span class="dim-desc">结构化要点、Markdown 表格</span>
+          </div>
+          <div class="dim-row">
+            <span class="dim-tag tag-dev">开发人员</span>
+            <span class="dim-desc">JSON 格式、代码块</span>
+          </div>
+        </div>
+      </div>
+
+      <h4 class="subsection-title">受众对比示例：Wi-Fi 7 路由器</h4>
+      <div class="audience-compare">
+        <div class="compare-card compare-easy">
+          <div class="compare-header">
+            <span class="compare-badge">受众 A</span>
+            <span class="compare-label">技术小白 · 老年群体</span>
+          </div>
+          <div class="compare-q"><span class="role-u">User</span> 这路由器到底快不快啊？家里五六个手机同时看视频会不会卡？</div>
+          <div class="compare-a"><span class="role-a">Assistant</span> 您放心，这款路由器速度非常快！它就像一条超宽的高速公路（支持最新的 Wi-Fi 7），而且自带"智能交警"（OFDMA技术）。就算您家里五六个手机同时看高清视频，它也能把网络分配得井井有条，绝对不会卡顿的。</div>
+        </div>
+        <div class="compare-card compare-expert">
+          <div class="compare-header">
+            <span class="compare-badge">受众 B</span>
+            <span class="compare-label">专业极客 · IT 人员</span>
+          </div>
+          <div class="compare-q"><span class="role-u">User</span> 这款路由器的无线吞吐量和并发处理机制是什么？</div>
+          <div class="compare-a"><span class="role-a">Assistant</span> 该设备支持完整的 Wi-Fi 7 协议栈。双频并发理论峰值速率可达 3000Mbps。在多终端高负载场景下，依托底层硬件级支持的 OFDMA（正交频分多址）与 MU-MIMO 技术，可显著降低信道拥堵与网络延迟。</div>
+        </div>
+      </div>
+
+      <div class="benefit-row">
+        <div class="benefit-item">
+          <div class="benefit-num">01</div>
+          <div class="benefit-text"><strong>提升泛化能力</strong>：模型学会根据用户措辞自动推断认知水位</div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-num">02</div>
+          <div class="benefit-text"><strong>实现千人千面</strong>：RAG 架构中，固定知识经过微调模型润色后极具针对性</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成问答对和导出 -->
+  <div class="section-block" id="export">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">1.3</span> 生成问答对和数据导出</h3>
+      <div class="pipeline-flow">
+        <div class="flow-step">
+          <div class="flow-icon">📂</div>
+          <div class="flow-label">自动提取问题</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">👁️</div>
+          <div class="flow-label">人工检查问题</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">🤖</div>
+          <div class="flow-label">自动生成数据集</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">⭐</div>
+          <div class="flow-label">质量评估</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">📦</div>
+          <div class="flow-label">导出数据集</div>
+        </div>
+      </div>
+      <div class="warning-box">
+        <strong>⚠️ 导出设置</strong>：选择【在 LLaMA Factory 中使用】，不要包含思维链（如数据集中没有思维链内容）。如所有问题都经过人工确认，可选择【仅导出已确认数据】。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CHAPTER 2 ===== -->
+<section class="chapter" id="ch2">
+  <div class="chapter-divider">
+    <div class="divider-line"></div>
+    <div class="divider-badge">CHAPTER 02</div>
+    <div class="divider-line"></div>
+  </div>
+  <div class="chapter-header">
+    <h2 class="chapter-title">LLaMA Factory 数据文件解析</h2>
+    <p class="chapter-desc">理解数据目录结构，掌握每种文件格式的用途与配置方式</p>
+  </div>
+
+  <div class="section-block" id="dataset-info">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">2.1</span> 数据目录结构</h3>
+      <div class="file-tree">
+        <div class="tree-line tree-root">📁 data/</div>
+        <div class="tree-line tree-key" data-target="dataset-info-card">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">📋 dataset_info.json</span>
+          <span class="tree-badge">数据集注册表（入口）</span>
+        </div>
+        <div class="tree-line" data-target="alpaca-card">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">📄 alpaca.json</span>
+          <span class="tree-badge">单轮指令跟随格式</span>
+        </div>
+        <div class="tree-line" data-target="sharegpt-card">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">💬 sharegpt.json</span>
+          <span class="tree-badge">多轮对话格式</span>
+        </div>
+        <div class="tree-line" data-target="multi-card">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">🧠 multilingual-thinking.json</span>
+          <span class="tree-badge">带思维链扩展格式</span>
+        </div>
+        <div class="tree-line" data-target="taskconfig-card">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">⚙️ task-config.json</span>
+          <span class="tree-badge">EDS 生成工具配置</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">└──</span>
+          <span class="tree-dir">📁 files/</span>
+          <span class="tree-badge">原始文档目录</span>
+        </div>
+      </div>
+
+      <div class="file-card" id="dataset-info-card">
+        <div class="file-card-header">
+          <code class="file-name">dataset_info.json</code>
+          <span class="file-role">数据集注册表 · 入口文件</span>
+        </div>
+        <p>LLaMA Factory 数据系统的<strong>入口</strong>。不存储数据本身，而是告诉 LLaMA Factory 每个文件"是什么格式、字段叫什么名字、该怎么解析"。</p>
+        <div class="alert-box">⚠️ 没有在此注册的数据文件，LLaMA Factory 完全忽略。</div>
+        <h5>formatting 字段取值</h5>
+        <table class="data-table">
+          <thead><tr><th>取值</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><code>alpaca</code>（默认）</td><td>Stanford Alpaca 格式，单轮指令跟随</td></tr>
+            <tr><td><code>sharegpt</code></td><td>ShareGPT 多轮对话格式</td></tr>
+            <tr><td><code>multilingual-thinking</code></td><td>带思维链的扩展多轮对话格式</td></tr>
+          </tbody>
+        </table>
+        <pre class="code-block"><code>{
+  "数据集名称A": {
+    "file_name": "alpaca.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt":   "instruction",
+      "query":    "input",
+      "response": "output",
+      "system":   "system"
+    }
+  }
+}</code></pre>
+      </div>
+
+      <div class="file-card" id="alpaca-card">
+        <div class="file-card-header">
+          <code class="file-name">alpaca.json</code>
+          <span class="file-role">单轮指令跟随 · 适用于客服问答</span>
+        </div>
+        <pre class="code-block"><code>[
+  {
+    "instruction": "问题/指令文本",
+    "input":       "",         // 补充上下文，通常为空
+    "output":      "完整回答",
+    "system":      ""          // 系统提示，通常为空
+  }
+]</code></pre>
+        <div class="field-list">
+          <div class="field-item"><code>instruction</code> — 核心问题或指令，模型必须根据它生成回答</div>
+          <div class="field-item"><code>input</code> — 可为空，附加材料（如"翻译以下文本："）</div>
+          <div class="field-item"><code>output</code> — 标准答案，即<strong>微调的学习目标</strong></div>
+          <div class="field-item"><code>system</code> — 可选，为该条数据指定特定系统人格</div>
+        </div>
+      </div>
+
+      <div class="file-card" id="sharegpt-card">
+        <div class="file-card-header">
+          <code class="file-name">sharegpt.json</code>
+          <span class="file-role">多轮对话 · 适用于上下文连贯对话</span>
+        </div>
+        <pre class="code-block"><code>[
+  {
+    "messages": [
+      { "role": "system",    "content": "系统提示词" },
+      { "role": "user",      "content": "用户说的话" },
+      { "role": "assistant", "content": "助手回复" },
+      { "role": "user",      "content": "用户追问" },
+      { "role": "assistant", "content": "助手再次回复" }
+    ]
+  }
+]</code></pre>
+      </div>
+
+      <div class="file-card" id="multi-card">
+        <div class="file-card-header">
+          <code class="file-name">multilingual-thinking.json</code>
+          <span class="file-role">带思维链 · 训练推理型模型（DeepSeek-R1 类）</span>
+        </div>
+        <p>ShareGPT 格式的<strong>扩展版本</strong>，专为训练具备显式推理过程的模型设计。每条数据是 JSONL 对象（换行分隔，非数组）。</p>
+        <pre class="code-block"><code>{
+  "reasoning_language": "English",
+  "messages": [
+    { "role": "system",    "content": "",        "thinking": null },
+    { "role": "user",      "content": "问题",    "thinking": null },
+    { "role": "assistant", "content": "完整回答", "thinking": "推理过程..." }
+  ]
+}</code></pre>
+        <div class="field-list">
+          <div class="field-item"><code>thinking</code> — 助手在正式回答前的"内心推理过程"</div>
+          <div class="field-item"><code>reasoning_language</code> — 控制思维链语言（允许思维用英文、回答用中文）</div>
+        </div>
+      </div>
+
+      <div class="file-card" id="taskconfig-card">
+        <div class="file-card-header">
+          <code class="file-name">task-config.json</code>
+          <span class="file-role">EDS 生成工具配置 · 不参与 LLaMA Factory 训练</span>
+        </div>
+        <pre class="code-block"><code>{
+  "textSplitMinLength": 2200,
+  "textSplitMaxLength": 4000,
+  "questionGenerationLength": 240,
+  "questionMaskRemovingProbability": 60,
+  "concurrencyLimit": "20",
+  "multiTurnRounds": 3,
+  "splitType": "markdown"
+}</code></pre>
+        <p>记录生成时的超参数，用于<strong>复现数据集的生成过程</strong>，不参与 LLaMA Factory 的训练流程。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CHAPTER 3 ===== -->
+<section class="chapter" id="ch3">
+  <div class="chapter-divider">
+    <div class="divider-line"></div>
+    <div class="divider-badge">CHAPTER 03</div>
+    <div class="divider-line"></div>
+  </div>
+  <div class="chapter-header">
+    <h2 class="chapter-title">LLaMA Factory 微调参数解析</h2>
+    <p class="chapter-desc">从参数作用、效果影响、调整策略、显存影响四个维度全面解析每一个关键参数</p>
+  </div>
+
+  <!-- 核心超参数 -->
+  <div class="section-block" id="core-params">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">3.1</span> 核心超参数</h3>
+
+      <!-- 学习率 -->
+      <div class="param-card" id="lr">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">学习率</h4>
+            <span class="param-en">Learning Rate</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">默认 <code>5e-5</code></span>
+            <span class="param-default">LoRA 推荐 <code>5e-4</code></span>
+            <span class="vram-badge vram-none">显存无影响</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <div class="param-section">
+            <h5>核心作用</h5>
+            <p>控制模型每次看到数据后，<strong>纠正错误的"步伐大小"</strong>。AdamW 优化器的初始学习率，决定了参数更新的幅度。</p>
+          </div>
+          <div class="param-section">
+            <h5>动画演示：下山比喻</h5>
+            <div class="anim-container" id="lrAnimContainer">
+              <canvas id="lrCanvas" width="640" height="280"></canvas>
+              <div class="anim-controls">
+                <button class="replay-btn" onclick="if(!lrAnimation)lrAnimation=createLRAnimation();lrAnimation.replay()">↺ 重播</button>
+                <div class="anim-legend">
+                  <span class="legend-item"><span class="legend-dot dot-too-large"></span>学习率过大（震荡/发散）</span>
+                  <span class="legend-item"><span class="legend-dot dot-optimal"></span>学习率合适（平滑收敛）</span>
+                  <span class="legend-item"><span class="legend-dot dot-too-small"></span>学习率过小（几乎不动）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="effect-row">
+            <div class="effect-bad">
+              <div class="effect-label">过大 ❌</div>
+              <ul><li>灾难性遗忘</li><li>无法收敛</li></ul>
+            </div>
+            <div class="effect-good">
+              <div class="effect-label">合适 ✅</div>
+              <ul><li>稳定收敛</li><li>知识保留</li></ul>
+            </div>
+            <div class="effect-bad">
+              <div class="effect-label">过小 ❌</div>
+              <ul><li>局部最优</li><li>训练极慢</li><li>过拟合风险</li></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 训练轮数 -->
+      <div class="param-card" id="epochs">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">训练轮数</h4>
+            <span class="param-en">Epochs</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">默认 <code>3.0</code></span>
+            <span class="param-default">推荐 <code>2-6</code></span>
+            <span class="vram-badge vram-none">显存无影响</span>
+            <span class="vram-badge vram-time">线性增加时间</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <div class="param-section">
+            <h5>核心作用</h5>
+            <p>决定模型把数据集<strong>从头到尾完整学习多少遍</strong>。过少导致欠拟合，过多导致过拟合。</p>
+          </div>
+          <div class="param-section">
+            <h5>动画演示：拟合曲线变化</h5>
+            <div class="anim-container" id="epochAnimContainer">
+              <canvas id="epochCanvas" width="640" height="260"></canvas>
+              <div class="anim-controls">
+                <button class="replay-btn" onclick="if(!epochAnimation){epochAnimation=createEpochAnimation();}epochAnimation.replay()">↺ 重播</button>
+                <div class="anim-legend">
+                  <span class="legend-item"><span class="legend-dot dot-underfit"></span>欠拟合（Epoch 过少）</span>
+                  <span class="legend-item"><span class="legend-dot dot-goodfit"></span>好拟合（Epoch 合适）</span>
+                  <span class="legend-item"><span class="legend-dot dot-overfit"></span>过拟合（Epoch 过多）</span>
+                  <span style="font-size:0.72rem;color:var(--text-dim)">三条曲线叠加对比</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tip-box">
+            <strong>数据量小时可设到 6 轮</strong>，但要密切观察验证集损失曲线，防止过拟合。
+          </div>
+        </div>
+      </div>
+
+      <!-- 计算类型 -->
+      <div class="param-card" id="dtype">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">计算类型</h4>
+            <span class="param-en">Compute dtype</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">推荐 <code>bf16</code></span>
+            <span class="vram-badge vram-major">显存减半</span>
+            <span class="vram-badge vram-speed">速度提升数倍</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <div class="param-section">
+            <h5>动画演示：格式对比</h5>
+            <div class="anim-container" id="dtypeAnimContainer">
+              <canvas id="dtypeCanvas" width="640" height="240"></canvas>
+              <div class="anim-controls">
+                <button class="replay-btn" onclick="if(!dtypeAnimation){dtypeAnimation=createDtypeAnimation();}dtypeAnimation.replay()">↺ 重播</button>
+              </div>
+            </div>
+          </div>
+          <div class="dtype-compare">
+            <div class="dtype-item dtype-fp32">
+              <div class="dtype-name">FP32</div>
+              <div class="dtype-bits">32 位</div>
+              <div class="dtype-desc">精度最高，显存最大，速度最慢</div>
+            </div>
+            <div class="dtype-item dtype-fp16">
+              <div class="dtype-name">FP16</div>
+              <div class="dtype-bits">16 位</div>
+              <div class="dtype-desc">数值范围窄，容易溢出崩溃</div>
+            </div>
+            <div class="dtype-item dtype-bf16 recommended">
+              <div class="dtype-rec-badge">推荐</div>
+              <div class="dtype-name">BF16</div>
+              <div class="dtype-bits">16 位</div>
+              <div class="dtype-desc">业界标配，范围等同 FP32，训练极稳定</div>
+            </div>
+          </div>
+          <div class="tip-box">
+            <strong>RTX 30/40 系列、A100/H100</strong>：直接选 <code>bf16</code>，这是最优解。<br>
+            <strong>RTX 20 系列、V100</strong>：选 <code>fp16</code>（不支持 bf16 硬件加速）。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 基础参数 -->
+  <div class="section-block alt-bg" id="base-params">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">3.2</span> 基础参数</h3>
+
+      <div class="param-card">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">最大梯度范数</h4>
+            <span class="param-en">Max Gradient Norm</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">默认 <code>1.0</code></span>
+            <span class="vram-badge vram-none">显存无影响</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>梯度裁剪的阈值。就像给方向盘加了一个<strong>"最大转向限位器"</strong>——防止异常数据造成梯度爆炸，保证训练稳定性。</p>
+          <p>默认值 <code>1.0</code> 适用于 99% 的情况，只有训练 Loss 大幅波动时才需要调小。</p>
+        </div>
+      </div>
+
+      <div class="param-card" id="max-samples">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">最大样本数</h4>
+            <span class="param-en">Max Samples</span>
+          </div>
+          <div class="param-meta">
+            <span class="vram-badge vram-none">显存无影响</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>限制模型从数据集中读取的最大条数，用于<strong>控制数据规模</strong>和平衡多数据集比��。</p>
+          <div class="strategy-grid">
+            <div class="strategy-item">
+              <div class="strategy-label strategy-debug">🔬 调试阶段</div>
+              <p>设置 <code>1000–2000</code>，先跑通再大量训练，节省试错时间</p>
+            </div>
+            <div class="strategy-item">
+              <div class="strategy-label strategy-prod">🚀 正式训练</div>
+              <p>设为大于实际数据量的值，确保所有数据都参与训练</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 训练参数 -->
+  <div class="section-block" id="train-params">
+    <div class="content-wrap">
+      <h3 class="section-title"><span class="section-num">3.3</span> 训练参数</h3>
+      <p class="section-lead">决定模型<strong>"怎么吃透数据"以及"显卡能不能撑得住"</strong>的核心参数群</p>
+
+      <!-- 截断长度 -->
+      <div class="param-card" id="cutoff">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">截断长度</h4>
+            <span class="param-en">Cutoff Length</span>
+          </div>
+          <div class="param-meta">
+            <span class="vram-badge vram-critical">显存平方级增长 ⚠️</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>模型一次能塞进脑子里的<strong>最大 Token 数量</strong>（上下文窗口大小）。</p>
+          <div class="param-section">
+            <h5>动画演示：注意力机制的平方级显存增长</h5>
+            <div class="anim-container" id="cutoffAnimContainer">
+              <canvas id="cutoffCanvas" width="640" height="260"></canvas>
+              <div class="anim-controls">
+                <button class="replay-btn" onclick="if(!cutoffAnimation){cutoffAnimation=createCutoffAnimation();}cutoffAnimation.replay()">↺ 重播</button>
+                <div class="anim-legend">
+                  <span class="legend-item"><span class="legend-dot dot-linear"></span>线性增长（理想）</span>
+                  <span class="legend-item"><span class="legend-dot dot-quadratic"></span>实际显存增长（平方级）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="code-cmd">
+<pre class="code-block"><code>uv run python scripts\stat_utils\length_cdf.py \
+  --model_name_or_path E:\Data\Qwen3.5-4B \
+  --dataset "[Easy Dataset] Alpaca" \
+  --dataset_dir E:\Data\zsLQHGweOp6d \
+  --template qwen3_5</code></pre>
+          </div>
+          <div class="tip-box">使用统计脚本查看 Token 分布，按 95~98 分位数设置截断长度，避免过度浪费显存。</div>
+        </div>
+      </div>
+
+      <!-- 批处理大小 -->
+      <div class="param-card" id="batch">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">批处理大小</h4>
+            <span class="param-en">Batch Size</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">7B 模型推荐 <code>1-8</code></span>
+            <span class="vram-badge vram-linear">显存线性增长</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>模型在一次前向+反向传播中，<strong>同时并行处理的样本数量</strong>。增大批次能提升 GPU 利用率，但直接线性增加显存占用。</p>
+          <div class="param-section">
+            <h5>动画演示：批改作业比喻</h5>
+            <div class="anim-container" id="batchAnimContainer">
+              <canvas id="batchCanvas" width="640" height="240"></canvas>
+              <div class="anim-controls">
+                <button class="replay-btn" onclick="if(!batchAnimation){batchAnimation=createBatchAnimation();}batchAnimation.replay()">↺ 重播</button>
+              </div>
+            </div>
+          </div>
+          <div class="warning-box">⚠️ 显存溢出时，<strong>先将批处理大小砍半</strong>，这是最直接有效的解决方案。</div>
+        </div>
+      </div>
+
+      <!-- 梯度累积 -->
+      <div class="param-card" id="grad-accum">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">梯度累积</h4>
+            <span class="param-en">Gradient Accumulation</span>
+          </div>
+          <div class="param-meta">
+            <span class="vram-badge vram-none">显存影响趋近零</span>
+            <span class="vram-badge vram-time">增加训练时间</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>在显存不足时，通过<strong>累积多步梯度再更新</strong>来模拟大批处理的效果。</p>
+          <div class="formula-box">
+            <div class="formula">有效批次大小 = 单卡批处理大小 × 梯度累积步数 × 显卡数量</div>
+            <div class="formula-example">示例：1 × 16 × 1 = 16（有效批次）</div>
+          </div>
+          <div class="tip-box">
+            <strong>用时间换空间</strong>：梯度累积不增加显存，但会延长训练时间。适合小显存用户实现大有效批次。
+          </div>
+        </div>
+      </div>
+
+      <!-- 验证集比例 -->
+      <div class="param-card" id="val-split">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">验证集比例</h4>
+            <span class="param-en">Validation Split Ratio</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">小数据集推荐 <code>0.05-0.1</code></span>
+            <span class="vram-badge vram-none">显存无影响</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>从训练数据中保留一部分专门用于检测<strong>过拟合</strong>的"试卷"。设为 0 意味着失去过拟合监控雷达。</p>
+          <div class="val-visual">
+            <div class="val-bar-wrap">
+              <div class="val-label-top">数据集 100%</div>
+              <div class="val-bar-track">
+                <div class="val-train-part" style="width:90%">训练集 90%</div>
+                <div class="val-val-part" style="width:10%">验证集 10%</div>
+              </div>
+            </div>
+          </div>
+          <div class="warning-box">
+            ⚠️ 将验证集比例设为 <code>0</code> 时，只能看到训练集损失持续下降的"幻觉"。直到部署才会发现模型已经成为复读机。
+          </div>
+        </div>
+      </div>
+
+      <!-- 学习率调节器 -->
+      <div class="param-card" id="scheduler">
+        <div class="param-header">
+          <div class="param-title-group">
+            <h4 class="param-name">学习率调节器</h4>
+            <span class="param-en">LR Scheduler</span>
+          </div>
+          <div class="param-meta">
+            <span class="param-default">推荐 <code>cosine</code></span>
+            <span class="vram-badge vram-none">显存无影响</span>
+          </div>
+        </div>
+        <div class="param-body">
+          <p>让学习率随训练进度<strong>动态变化</strong>的策略。余弦退火是大语言模型微调的绝对标准。</p>
+          <div class="param-section">
+            <h5>动画演示：余弦退火曲线</h5>
+            <div class="anim-container" id="schedulerAnimContainer">
+              <canvas id="schedulerCanvas" width="640" height="240"></canvas>
+              <div class="anim-controls">
+                <button class="replay-btn" onclick="if(!schedulerAnimation){schedulerAnimation=createSchedulerAnimation();}schedulerAnimation.replay()">↺ 重播</button>
+                <div class="anim-legend">
+                  <span class="legend-item"><span class="legend-dot dot-cosine"></span>余弦退火（推荐）</span>
+                  <span class="legend-item"><span class="legend-dot dot-linear-sched"></span>线性下降（对比）</span>
+                  <span class="legend-item"><span class="legend-dot dot-constant"></span>恒定不变（对比）</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cosine-phases">
+            <div class="phase-item">
+              <div class="phase-num">1</div>
+              <div class="phase-text"><strong>预热期</strong>：小油门慢慢启动，防止损坏预训练底层记忆</div>
+            </div>
+            <div class="phase-item">
+              <div class="phase-num">2</div>
+              <div class="phase-text"><strong>狂飙期</strong>：保持高学习率，快速逼近最优解区域</div>
+            </div>
+            <div class="phase-item">
+              <div class="phase-num">3</div>
+              <div class="phase-text"><strong>减速期</strong>：开始收油门，避免冲过最优解</div>
+            </div>
+            <div class="phase-item">
+              <div class="phase-num">4</div>
+              <div class="phase-text"><strong>停泊期</strong>：极小学习率精细调整，"滑行"至完美停泊点</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-content">
+    <div class="footer-course">大语言模型微调-04</div>
+    <div class="footer-instructor">Zilor</div>
+  </div>
+</footer>
+
+<script src="assets/main.js"></script>
+</body>
+</html>

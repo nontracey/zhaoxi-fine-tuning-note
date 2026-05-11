@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大语言模型微调-03 | Zilor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Serif+SC:wght@300;400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+  <!-- ========== TOP NAVBAR ========== -->
+  <nav class="navbar" id="navbar">
+    <div class="navbar-left">
+      <span class="nav-course-title">大语言模型微调-03</span>
+    </div>
+    <div class="navbar-center">
+      <ul class="nav-menu" id="navMenu">
+        <li class="nav-item has-submenu">
+          <a href="#section-1" class="nav-link">指令微调数据结构</a>
+          <ul class="submenu">
+            <li><a href="#s1-instruction" class="submenu-link">指令</a></li>
+            <li><a href="#s1-input" class="submenu-link">输入</a></li>
+            <li><a href="#s1-output" class="submenu-link">输出</a></li>
+            <li><a href="#s1-aggregate" class="submenu-link">逻辑结构聚合</a></li>
+          </ul>
+        </li>
+        <li class="nav-item has-submenu">
+          <a href="#section-2" class="nav-link">微调数据集格式</a>
+          <ul class="submenu">
+            <li><a href="#s2-alpaca" class="submenu-link">Alpaca 格式</a></li>
+            <li><a href="#s2-sharegpt" class="submenu-link">ShareGPT 格式</a></li>
+            <li><a href="#s2-cleaning" class="submenu-link">数据清洗</a></li>
+          </ul>
+        </li>
+        <li class="nav-item has-submenu">
+          <a href="#section-3" class="nav-link">准备业务数据</a>
+          <ul class="submenu">
+            <li><a href="#s3-essence" class="submenu-link">微调的本质</a></li>
+            <li><a href="#s3-scenarios" class="submenu-link">四大应用场景</a></li>
+            <li><a href="#s3-validation" class="submenu-link">验证微调效果</a></li>
+          </ul>
+        </li>
+        <li class="nav-item has-submenu">
+          <a href="#section-4" class="nav-link">Easy DataSet</a>
+          <ul class="submenu">
+            <li><a href="#s4-advantages" class="submenu-link">核心优势</a></li>
+            <li><a href="#s4-install" class="submenu-link">安装方式</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+    <div class="navbar-right">
+      <span class="nav-instructor">讲师 · Zilor</span>
+    </div>
+  </nav>
+
+  <!-- ========== COVER ========== -->
+  <section class="cover" id="cover">
+    <canvas id="particleCanvas"></canvas>
+    <div class="cover-grid-overlay"></div>
+    <div class="cover-content">
+      <div class="cover-badge">大语言模型系列课程 · 第三讲</div>
+      <h1 class="cover-title">
+        <span class="cover-title-line">微调数据</span>
+        <span class="cover-title-line accent">格式与制作</span>
+      </h1>
+      <p class="cover-subtitle">大语言模型微调-03</p>
+      <div class="cover-instructor">
+        <div class="instructor-avatar">Z</div>
+        <div class="instructor-info">
+          <span class="instructor-label">主讲讲师</span>
+          <span class="instructor-name">Zilor</span>
+        </div>
+      </div>
+
+      <div class="cover-toc">
+        <div class="toc-title">课程目录</div>
+        <div class="toc-grid">
+          <div class="toc-item" data-href="#section-1">
+            <span class="toc-num">01</span>
+            <div class="toc-text">
+              <strong>指令微调数据的标准逻辑结构</strong>
+              <small>指令 · 输入 · 输出 · 聚合</small>
+            </div>
+          </div>
+          <div class="toc-item" data-href="#section-2">
+            <span class="toc-num">02</span>
+            <div class="toc-text">
+              <strong>认识微调数据集格式</strong>
+              <small>Alpaca · ShareGPT · 数据清洗</small>
+            </div>
+          </div>
+          <div class="toc-item" data-href="#section-3">
+            <span class="toc-num">03</span>
+            <div class="toc-text">
+              <strong>准备微调原始业务数据</strong>
+              <small>本质 · 场景 · 验证</small>
+            </div>
+          </div>
+          <div class="toc-item" data-href="#section-4">
+            <span class="toc-num">04</span>
+            <div class="toc-text">
+              <strong>认识 Easy DataSet</strong>
+              <small>核心优势 · 安装方式</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cover-scroll-hint">
+      <span>向下滚动</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </section>
+
+  <!-- ========== SECTION 1: 指令微调数据的标准逻辑结构 ========== -->
+  <section class="chapter" id="section-1">
+    <div class="chapter-inner">
+      <div class="chapter-header reveal">
+        <div class="chapter-num">01</div>
+        <div>
+          <h2 class="chapter-title">指令微调数据的标准逻辑结构</h2>
+          <p class="chapter-desc">微调的本质是通过特定格式的数据改变模型内部参数，使输出从"无目的文本延续"转变为"严格遵循指令的逻辑推导"。</p>
+        </div>
+      </div>
+
+      <!-- 三字段概览动画 -->
+      <div class="card reveal" id="s1-overview">
+        <div class="card-label">核心概念</div>
+        <h3 class="card-title">三元逻辑结构</h3>
+        <p class="card-desc">一条标准的微调数据被严格划分为三个核心逻辑字段，各自扮演截然不同的数学角色。</p>
+        <div class="three-field-diagram" id="threeFieldDiagram">
+          <div class="field-block field-instruction" id="fieldInstruction">
+            <div class="field-icon">⚡</div>
+            <div class="field-name">指令</div>
+            <div class="field-desc">触发特定任务逻辑的<br>首要条件向量</div>
+            <div class="field-tag">必填</div>
+          </div>
+          <div class="field-arrow" id="arrow1">→</div>
+          <div class="field-block field-input" id="fieldInput">
+            <div class="field-icon">📄</div>
+            <div class="field-name">输入</div>
+            <div class="field-desc">法则所作用的<br>具体数据对象</div>
+            <div class="field-tag field-tag-optional">选填</div>
+          </div>
+          <div class="field-arrow" id="arrow2">→</div>
+          <div class="field-block field-output" id="fieldOutput">
+            <div class="field-icon">🎯</div>
+            <div class="field-name">输出</div>
+            <div class="field-desc">误差计算的绝对<br>目标与数学锚点</div>
+            <div class="field-tag">必填</div>
+          </div>
+        </div>
+        <button class="replay-btn" data-target="threeFieldDiagram">↺ 重播动画</button>
+      </div>
+
+      <!-- 指令 -->
+      <div class="subsection" id="s1-instruction">
+        <h3 class="subsection-title reveal"><span class="subsection-num">1.1</span>指令</h3>
+        <div class="card-grid">
+          <div class="card reveal">
+            <div class="card-label">数学作用</div>
+            <h4 class="card-subtitle">意图的向量化映射</h4>
+            <p>指令文本被分解为词汇单元，映射为高维空间数值向量。不同指令激活神经网络中<strong>完全不同的计算路径</strong>，产生强烈的先验条件。</p>
+            <div class="highlight-box">
+              <div class="highlight-row">
+                <span class="highlight-label">↑ 大幅提高</span>
+                <span>符合指令规则的词汇输出概率</span>
+              </div>
+              <div class="highlight-row danger">
+                <span class="highlight-label">↓ 压制到零</span>
+                <span>无关闲聊与随机生成词汇</span>
+              </div>
+            </div>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">工程精度</div>
+            <h4 class="card-subtitle">具体性与边界设定</h4>
+            <p>模糊指令导致梯度计算方向发散。精确指令为模型设定严苛的概率收敛目标。</p>
+            <div class="comparison-box">
+              <div class="compare-bad">
+                <span class="compare-icon">✗</span>
+                <span>"处理这段文字"</span>
+              </div>
+              <div class="compare-good">
+                <span class="compare-icon">✓</span>
+                <span>"请提取文本中的所有医疗实体，包括疾病名称、症状和药品，并以列表形式呈现"</span>
+              </div>
+            </div>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">泛化能力</div>
+            <h4 class="card-subtitle">多样性与泛化</h4>
+            <p>从宏观统计学角度，指令字段必须具备<strong>高度表达多样性</strong>。单一固定表达会导致严重过拟合，引入同义词替换、句式倒装能迫使模型在更高维度的语义空间寻找任务本质。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入 -->
+      <div class="subsection" id="s1-input">
+        <h3 class="subsection-title reveal"><span class="subsection-num">1.2</span>输入</h3>
+        <div class="card-grid">
+          <div class="card reveal">
+            <div class="card-label">动态存在</div>
+            <h4 class="card-subtitle">输入字段的动态存在性</h4>
+            <div class="input-states">
+              <div class="state-block state-required">
+                <div class="state-title">需要输入的场景</div>
+                <ul class="state-list">
+                  <li>文本摘要</li>
+                  <li>长文本翻译</li>
+                  <li>阅读理解</li>
+                  <li>特定信息抽取</li>
+                </ul>
+              </div>
+              <div class="state-block state-empty">
+                <div class="state-title">输入为空的场景</div>
+                <ul class="state-list">
+                  <li>头脑风暴</li>
+                  <li>常识问答</li>
+                  <li>直接生成代码</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">安全边界</div>
+            <h4 class="card-subtitle">指令与输入的严格物理隔离</h4>
+            <p>混合在一起的指令与输入会导致模型被<strong>提示词注入攻击</strong>劫持。高质量数据集通过特定结构化分隔符建立物理边界：</p>
+            <div class="priority-diagram">
+              <div class="priority-block priority-high">
+                <span>指令字段</span>
+                <span class="priority-badge">绝对优先级</span>
+              </div>
+              <div class="priority-separator">隔离符</div>
+              <div class="priority-block priority-low">
+                <span>输入字段</span>
+                <span class="priority-badge secondary">被处理客体</span>
+              </div>
+            </div>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">硬件限制</div>
+            <h4 class="card-subtitle">上下文窗口的显存制约</h4>
+            <p>计算复杂度随输入长度<strong>指数级膨胀</strong>。过长的输入字段会导致显存溢出，且注意力机制无法聚焦核心信息。必须对输入长度进行严格物理截断或信息压缩。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输出 -->
+      <div class="subsection" id="s1-output">
+        <h3 class="subsection-title reveal"><span class="subsection-num">1.3</span>输出</h3>
+
+        <!-- 训练循环动画 -->
+        <div class="card reveal">
+          <div class="card-label">核心机制</div>
+          <h3 class="card-title">误差计算的物理循环</h3>
+          <div class="training-loop" id="trainingLoop">
+            <div class="loop-step" id="loop1">
+              <div class="loop-icon">📥</div>
+              <div class="loop-text">指令 + 输入<br>输入模型</div>
+            </div>
+            <div class="loop-connector"></div>
+            <div class="loop-step" id="loop2">
+              <div class="loop-icon">🧠</div>
+              <div class="loop-text">前向传播<br>生成概率分布</div>
+            </div>
+            <div class="loop-connector"></div>
+            <div class="loop-step" id="loop3">
+              <div class="loop-icon">⚖️</div>
+              <div class="loop-text">与输出字段对比<br>计算 Loss</div>
+            </div>
+            <div class="loop-connector"></div>
+            <div class="loop-step" id="loop4">
+              <div class="loop-icon">🔄</div>
+              <div class="loop-text">反向传播<br>更新 LoRA 参数</div>
+            </div>
+          </div>
+          <button class="replay-btn" data-target="trainingLoop">↺ 重播动画</button>
+        </div>
+
+        <div class="card-grid">
+          <div class="card reveal">
+            <div class="card-label">格式规范</div>
+            <h4 class="card-subtitle">格式规范的严格硬编码</h4>
+            <p>每一个标点符号、空格、换行符都具备同等数学价值。格式瑕疵经数十个 Epoch 放大固化，导致结构性缺陷。</p>
+            <div class="code-block">
+              <pre><span class="code-comment">// 正确的输出格式示例</span>
+{
+  <span class="code-key">"entity"</span>: <span class="code-str">"肺炎"</span>,
+  <span class="code-key">"type"</span>: <span class="code-str">"疾病"</span>,
+  <span class="code-key">"confidence"</span>: <span class="code-num">0.98</span>
+}</pre>
+            </div>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">行为塑造</div>
+            <h4 class="card-subtitle">语气、风格与行为逻辑</h4>
+            <p>输出字段直接<strong>重构模型的概率空间</strong>：</p>
+            <ul class="feature-list">
+              <li>大量专业术语输出 → 弱化日常闲聊权重</li>
+              <li>设定拒绝场景 → 建立安全概率围墙</li>
+              <li>分点陈述输出 → 学习结构化回答风格</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 逻辑结构聚合 -->
+      <div class="subsection" id="s1-aggregate">
+        <h3 class="subsection-title reveal"><span class="subsection-num">1.4</span>逻辑结构聚合</h3>
+        <div class="card reveal">
+          <div class="card-label">拼接模板</div>
+          <h3 class="card-title">一维张量序列的物理拼接</h3>
+          <div class="tensor-sequence" id="tensorSequence">
+            <div class="tensor-block tensor-sys">系统起始符</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-inst-guide">指令引导符</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-inst">指令向量</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-ctx">上下文引导符</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-input">输入向量</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-ans">回答引导符</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-output">输出向量</div>
+            <div class="tensor-plus">+</div>
+            <div class="tensor-block tensor-end">终止符</div>
+          </div>
+          <div class="tensor-legend">
+            <div class="legend-item"><span class="legend-dot dot-cond"></span>已知条件（只产生激活值，不计算误差）</div>
+            <div class="legend-item"><span class="legend-dot dot-target"></span>目标结果（计算 Loss，驱动参数更新）</div>
+          </div>
+          <button class="replay-btn" data-target="tensorSequence">↺ 重播动画</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== SECTION 2: 认识微调数据集格式 ========== -->
+  <section class="chapter chapter-alt" id="section-2">
+    <div class="chapter-inner">
+      <div class="chapter-header reveal">
+        <div class="chapter-num">02</div>
+        <div>
+          <h2 class="chapter-title">认识微调数据集格式</h2>
+          <p class="chapter-desc">如何将结构化文本转化为微调程序能够直接读取和解析的文件？认识两种常见的微调数据集格式。</p>
+        </div>
+      </div>
+
+      <!-- Alpaca -->
+      <div class="subsection" id="s2-alpaca">
+        <h3 class="subsection-title reveal"><span class="subsection-num">2.1</span>认识 Alpaca 格式（指令问答型数据）</h3>
+        <div class="card reveal">
+          <div class="card-label">格式概述</div>
+          <p>由斯坦福大学在发布 Alpaca 模型时确立，属于<strong>单轮交互</strong>结构。一次提问对应一次回答，不包含历史对话记录。</p>
+          <div class="scenario-tags">
+            <span class="tag">单轮问答</span>
+            <span class="tag">文本分类</span>
+            <span class="tag">信息抽取</span>
+            <span class="tag">文本翻译与改写</span>
+            <span class="tag">代码生成</span>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <div class="card reveal">
+            <div class="card-label field-badge-instruction">instruction · 必填</div>
+            <h4 class="card-subtitle">任务指令 / 核心提问</h4>
+            <p>触发模型特定能力的开关。必须明确、具体，定义当前任务"做什么"。</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-label field-badge-input">input · 选填</div>
+            <h4 class="card-subtitle">补充背景 / 处理对象</h4>
+            <p>instruction 是"动作指令"，input 是动作的"作用对象"。当 instruction 本身已完整时可留空 <code>""</code>。</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-label field-badge-output">output · 必填</div>
+            <h4 class="card-subtitle">标准正确回答</h4>
+            <p>监督微调中的"监督信号"。不仅决定准确性，还决定格式和语气。质量直接决定微调能力上限。</p>
+          </div>
+        </div>
+
+        <div class="card reveal" id="alpacaDemo">
+          <div class="card-label">数据样例</div>
+          <h3 class="card-title">Alpaca 格式 JSON 示例</h3>
+          <div class="json-viewer" id="alpacaJson">
+<pre class="json-code"><span class="json-bracket">[</span>
+  <span class="json-bracket">{</span>
+    <span class="json-key">"instruction"</span>: <span class="json-str">"请分析下面这句话的情感倾向，输出结果只能是'正面'、'负面'或'中性'之一。"</span>,
+    <span class="json-key">"input"</span>: <span class="json-str">"今天购买的这款新手机电池续航非常差，用了不到半天就没电了，非常失望！"</span>,
+    <span class="json-key">"output"</span>: <span class="json-str">"负面"</span>
+  <span class="json-bracket">}</span>,
+  <span class="json-bracket">{</span>
+    <span class="json-key">"instruction"</span>: <span class="json-str">"光合作用的主要场所是植物细胞中的哪一个细胞器？"</span>,
+    <span class="json-key">"input"</span>: <span class="json-str">""</span>,
+    <span class="json-key">"output"</span>: <span class="json-str">"光合作用的主要场所是植物细胞中的叶绿体..."</span>
+  <span class="json-bracket">}</span>,
+  <span class="json-bracket">{</span>
+    <span class="json-key">"instruction"</span>: <span class="json-str">"请从下述文本中提取出所有的公司名称，并以逗号分隔返回。"</span>,
+    <span class="json-key">"input"</span>: <span class="json-str">"近日，谷歌宣布了其在人工智能领域的最新进展..."</span>,
+    <span class="json-key">"output"</span>: <span class="json-str">"谷歌, 微软, 百度, 阿里巴巴"</span>
+  <span class="json-bracket">}</span>
+<span class="json-bracket">]</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ShareGPT -->
+      <div class="subsection" id="s2-sharegpt">
+        <h3 class="subsection-title reveal"><span class="subsection-num">2.2</span>认识 ShareGPT 格式（多轮对话型数据）</h3>
+        <div class="card reveal">
+          <div class="card-label">格式概述</div>
+          <p>来源于用户分享的真实多轮对话记录，核心特征在于<strong>构建并维持上下文记忆</strong>。大模型本身不具备内建物理记忆，通过将历史对话拼接作为当前输入来实现多轮对话。</p>
+          <div class="scenario-tags">
+            <span class="tag">逻辑追问与任务细化</span>
+            <span class="tag">长周期角色扮演</span>
+            <span class="tag">多步骤问题诊断</span>
+            <span class="tag">长文本动态问答</span>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-label">字段结构</div>
+          <h3 class="card-title">ShareGPT 核心字段</h3>
+          <div class="sharegpt-fields">
+            <div class="sgpt-field">
+              <div class="sgpt-field-name">conversations</div>
+              <div class="sgpt-field-desc">JSON 列表，包含所有轮次记录，严格按时间顺序排列</div>
+            </div>
+            <div class="sgpt-field-children">
+              <div class="sgpt-field sub">
+                <div class="sgpt-field-name">from</div>
+                <div class="sgpt-field-desc">
+                  角色标识：<code>human</code> / <code>gpt</code> / <code>system</code><br>
+                  <small>⚠ 只对 <code>gpt</code> 的内容计算 Loss，对 <code>human</code> 进行掩码处理</small>
+                </div>
+              </div>
+              <div class="sgpt-field sub">
+                <div class="sgpt-field-name">value</div>
+                <div class="sgpt-field-desc">该角色在当前轮次输出的具体文本内容</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 多轮对话动画 -->
+        <div class="card reveal" id="sharegptDemo">
+          <div class="card-label">对话样例</div>
+          <h3 class="card-title">多轮对话结构演示</h3>
+          <div class="chat-demo" id="chatDemo">
+            <div class="chat-system">
+              <span class="role-badge role-system">SYSTEM</span>
+              <span>你是一个严谨的数据库专家，请在回答时提供标准的 SQL 语句，并对关键函数进行解释。</span>
+            </div>
+            <div class="chat-bubble human" id="chat1">
+              <span class="role-badge role-human">HUMAN</span>
+              <p>我有一张名为 employees 的表，有 id, name, salary 和 department_id 四个字段。请帮我写一个查询，找出每个部门薪水最高的员工。</p>
+            </div>
+            <div class="chat-bubble gpt" id="chat2">
+              <span class="role-badge role-gpt">GPT</span>
+              <p>建议使用窗口函数 <code>ROW_NUMBER()</code>。以下是标准 SQL：</p>
+              <div class="code-block small">
+<pre><span class="code-comment">WITH RankedSalaries AS (</span>
+  SELECT id, name, salary, department_id,
+    ROW_NUMBER() OVER(PARTITION BY department_id
+      ORDER BY salary DESC) as rn
+  FROM employees
+)
+SELECT * FROM RankedSalaries WHERE rn = 1;</pre>
+              </div>
+            </div>
+            <div class="chat-bubble human" id="chat3">
+              <span class="role-badge role-human">HUMAN</span>
+              <p>如果同一个部门里有两个人的薪水并列最高，<strong>使用上述代码</strong>会把两个人全部查询出来吗？</p>
+              <div class="context-highlight">↑ 使用代词"上述代码"，依赖上下文记忆</div>
+            </div>
+            <div class="chat-bubble gpt" id="chat4">
+              <span class="role-badge role-gpt">GPT</span>
+              <p>使用 <code>ROW_NUMBER()</code> 只会随机返回其中一个。应替换为 <code>RANK()</code> 函数，相同薪水会得到相同排名。</p>
+            </div>
+          </div>
+          <button class="replay-btn" data-target="chatDemo">↺ 重播动画</button>
+        </div>
+      </div>
+
+      <!-- 数据清洗 -->
+      <div class="subsection" id="s2-cleaning">
+        <h3 class="subsection-title reveal"><span class="subsection-num">2.3</span>数据清洗的基础要求</h3>
+        <div class="card reveal">
+          <div class="card-label">核心原则</div>
+          <p class="quote-text">"数据质量决定了模型能力的上限，而模型结构和训练算法只是在无限逼近这个上限。"</p>
+        </div>
+        <div class="card-grid two-col">
+          <div class="card reveal">
+            <div class="card-label">清洗维度 01</div>
+            <h4 class="card-subtitle">剔除乱码与非法字符</h4>
+            <ul class="feature-list">
+              <li>编码转换时出现的 GBK→UTF-8 乱码字符</li>
+              <li>网页抓取残留的 HTML 标签（&lt;div&gt;、&lt;br&gt;）</li>
+              <li>不可见的 ASCII 控制字符</li>
+            </ul>
+            <div class="tool-tag">工具：正则表达式过滤</div>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">清洗维度 02</div>
+            <h4 class="card-subtitle">处理异常空白符</h4>
+            <ul class="feature-list">
+              <li>连续多个空格合并为单空格</li>
+              <li>不必要的制表符 \t 处理</li>
+              <li>异常连续换行符 \n\n\n 修复</li>
+              <li>首尾不可见字符 trim 处理</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">清洗维度 03</div>
+            <h4 class="card-subtitle">过滤缺失与短文本</h4>
+            <ul class="feature-list">
+              <li>缺少 instruction 或 output 的行整行丢弃</li>
+              <li>设置字符长度阈值（回答 &lt; 5字符不采用）</li>
+              <li>过于简略的用户提问过滤</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">清洗维度 04</div>
+            <h4 class="card-subtitle">剔除逻辑错误问答对</h4>
+            <p>"答非所问"的数据会严重破坏模型原本的指令理解能力。自动化难以完全实现，需进行<strong>人工抽检</strong>以保障整体逻辑质量。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== SECTION 3: 准备微调原始业务数据 ========== -->
+  <section class="chapter" id="section-3">
+    <div class="chapter-inner">
+      <div class="chapter-header reveal">
+        <div class="chapter-num">03</div>
+        <div>
+          <h2 class="chapter-title">准备微调原始业务数据</h2>
+          <p class="chapter-desc">明确指令微调能做什么、不能做什么，是决定微调成败的关键第一步。</p>
+        </div>
+      </div>
+
+      <!-- 微调的本质 -->
+      <div class="subsection" id="s3-essence">
+        <h3 class="subsection-title reveal"><span class="subsection-num">3.1</span>微调的本质</h3>
+        <div class="card reveal">
+          <div class="card-label">经典类比</div>
+          <div class="analogy-container" id="analogyAnim">
+            <div class="analogy-block analogy-pretrain">
+              <div class="analogy-icon">📚</div>
+              <div class="analogy-title">预训练</div>
+              <div class="analogy-sub">读万卷书</div>
+              <div class="analogy-desc">模型阅读海量互联网文本，学习语言规律、世界常识和专业事实。<br><strong>真正获取"知识"的阶段</strong></div>
+            </div>
+            <div class="analogy-arrow">⟶</div>
+            <div class="analogy-block analogy-finetune">
+              <div class="analogy-icon">🎓</div>
+              <div class="analogy-title">微调（SFT）</div>
+              <div class="analogy-sub">入职 / 礼仪培训</div>
+              <div class="analogy-desc">主要作用是<strong>对齐</strong>和<strong>指令遵循</strong>。教会模型如何用人类喜欢的格式表达脑子里已有的知识。</div>
+            </div>
+          </div>
+          <button class="replay-btn" data-target="analogyAnim">↺ 重播动画</button>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-label">⚠ 常见误区</div>
+          <h3 class="card-title">为什么不能用微调强行灌输业务知识？</h3>
+          <div class="warning-grid">
+            <div class="warning-item">
+              <div class="warning-num">01</div>
+              <h5>极易引发"幻觉"</h5>
+              <p>预训练中没见过的知识，模型只会"死记硬背"表面问答模式，换个问法就胡编乱造</p>
+            </div>
+            <div class="warning-item">
+              <div class="warning-num">02</div>
+              <h5>学习效率低下</h5>
+              <p>几千到几万条的指令结构数据，不适合构建深层知识图谱和事实关联</p>
+            </div>
+            <div class="warning-item">
+              <div class="warning-num">03</div>
+              <h5>灾难性遗忘</h5>
+              <p>强行注入大量硬知识，模型会破坏原本流畅的对话和推理能力</p>
+            </div>
+            <div class="warning-item">
+              <div class="warning-num">04</div>
+              <h5>维护成本极高</h5>
+              <p>产品每次迭代都必须重新整理数据并重新微调，耗时耗力且效果难以保证</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-label">替代方案</div>
+          <h3 class="card-title">注入新知识的正确方式</h3>
+          <div class="solution-grid">
+            <div class="solution-block solution-rag">
+              <div class="solution-icon">🔍</div>
+              <div class="solution-title">RAG 检索增强生成</div>
+              <p>给模型外挂数据库。先检索相关知识文本，连同问题一起喂给模型做"开卷考试"。</p>
+              <div class="solution-pros">知识更新快 · 减少幻觉 · 可溯源</div>
+            </div>
+            <div class="solution-block solution-cpt">
+              <div class="solution-icon">🧬</div>
+              <div class="solution-title">CPT 增量预训练</div>
+              <p>收集大量领域纯文本语料，用预训练方式让模型继续学习，真正内化领域知识体系。</p>
+              <div class="solution-pros">深度内化 · 适合法律/医疗大模型</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 四大应用场景 -->
+      <div class="subsection" id="s3-scenarios">
+        <h3 class="subsection-title reveal"><span class="subsection-num">3.2</span>微调的四大应用场景</h3>
+        <div class="card reveal">
+          <div class="card-label">核心价值</div>
+          <p class="quote-text">SFT 的核心价值：<strong>塑造行为、格式和逻辑模式</strong><br>
+          <small>RAG 解决"说什么（What）"——确保内容有事实依据<br>SFT 解决"怎么说（How）"——确保语气、格式、逻辑完全符合业务规范</small></p>
+        </div>
+        <div class="scenarios-grid" id="scenariosGrid">
+          <div class="scenario-card reveal">
+            <div class="scenario-icon">🎭</div>
+            <h4>塑造特定"人设"与"语气"</h4>
+            <p>将冷冰冰的通用模型调教成符合企业调性的专属助手，改变模型的"肌肉记忆"</p>
+            <div class="scenario-example">例：严谨法律顾问、带品牌问候语的幽默助手</div>
+          </div>
+          <div class="scenario-card reveal">
+            <div class="scenario-icon">⚙️</div>
+            <h4>格式提取器</h4>
+            <p>训练模型严格只输出纯净的结构化代码，像精密 API 接口一样工作</p>
+            <div class="scenario-example">例：阅读杂乱文本后，只吐纯净 JSON，不说一个中文字</div>
+          </div>
+          <div class="scenario-card reveal">
+            <div class="scenario-icon">🔧</div>
+            <h4>让模型学会"使用工具"</h4>
+            <p>教导模型在合适时机输出调用外部 API 的特定指令，而非自己编造答案</p>
+            <div class="scenario-example">例："帮我查物流" → 输出 API 调用指令</div>
+          </div>
+          <div class="scenario-card reveal">
+            <div class="scenario-icon">🤝</div>
+            <h4>优化 RAG 自身的表现</h4>
+            <p>SFT 与 RAG 的黄金搭档组合：微调塑造回复风格，RAG 提供实时知识</p>
+            <div class="scenario-example">例：4B 小模型客服 = SFT 风格 + RAG 知识</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 验证微调效果 -->
+      <div class="subsection" id="s3-validation">
+        <h3 class="subsection-title reveal"><span class="subsection-num">3.3</span>如何验证微调效果</h3>
+        <div class="card reveal">
+          <div class="card-label">验证方法</div>
+          <h3 class="card-title">探针测试 / 知识注入测试</h3>
+          <div class="probe-steps">
+            <div class="probe-step">
+              <div class="probe-num">1</div>
+              <div class="probe-content">
+                <h5>设计反常识虚构案例</h5>
+                <p>在训练集中故意使用现实中绝对不存在的极端设定。避免使用"X1手机"等常见词汇，使用<strong>名字极度独特、参数反直觉</strong>的产品。</p>
+              </div>
+            </div>
+            <div class="probe-step">
+              <div class="probe-num">2</div>
+              <div class="probe-content">
+                <h5>将虚构内容纳入训练数据</h5>
+                <p>将这个虚构设定制作成标准格式的微调数据并完成微调训练。</p>
+              </div>
+            </div>
+            <div class="probe-step">
+              <div class="probe-num">3</div>
+              <div class="probe-content">
+                <h5>针对虚构设定进行提问验证</h5>
+                <p>如果模型能<strong>一本正经地输出我们设定的荒谬答案</strong>，这就 100% 证明微调流程跑通了，模型确实"吃"透了我们喂给它的新内容。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== SECTION 4: Easy DataSet ========== -->
+  <section class="chapter chapter-alt" id="section-4">
+    <div class="chapter-inner">
+      <div class="chapter-header reveal">
+        <div class="chapter-num">04</div>
+        <div>
+          <h2 class="chapter-title">认识 Easy DataSet 数据集制作</h2>
+          <p class="chapter-desc">专门为构建大语言模型数据集设计的强大工程化应用程序，提供端到端的自动化数据构建流水线。</p>
+        </div>
+      </div>
+
+      <!-- 核心优势 -->
+      <div class="subsection" id="s4-advantages">
+        <h3 class="subsection-title reveal"><span class="subsection-num">4.1</span>核心优势</h3>
+
+        <!-- 流水线动画 -->
+        <div class="card reveal">
+          <div class="card-label">自动化流水线</div>
+          <h3 class="card-title">端到端数据构建流程</h3>
+          <div class="pipeline" id="pipeline">
+            <div class="pipeline-step" id="pipe1">
+              <div class="pipeline-icon">📁</div>
+              <div class="pipeline-label">原始文档输入</div>
+              <div class="pipeline-formats">PDF · MD · DOCX · TXT · EPUB</div>
+            </div>
+            <div class="pipeline-arrow">▶</div>
+            <div class="pipeline-step" id="pipe2">
+              <div class="pipeline-icon">✂️</div>
+              <div class="pipeline-label">智能文本分割</div>
+              <div class="pipeline-formats">标题结构 · 递归分隔符 · 代码块</div>
+            </div>
+            <div class="pipeline-arrow">▶</div>
+            <div class="pipeline-step" id="pipe3">
+              <div class="pipeline-icon">🤖</div>
+              <div class="pipeline-label">LLM 自动生成问答</div>
+              <div class="pipeline-formats">问题提取 · 答案生成 · 思维链</div>
+            </div>
+            <div class="pipeline-arrow">▶</div>
+            <div class="pipeline-step" id="pipe4">
+              <div class="pipeline-icon">📊</div>
+              <div class="pipeline-label">质量控制与导出</div>
+              <div class="pipeline-formats">Alpaca / ShareGPT · JSON</div>
+            </div>
+          </div>
+          <button class="replay-btn" data-target="pipeline">↺ 重播动画</button>
+        </div>
+
+        <div class="card-grid two-col">
+          <div class="card reveal">
+            <div class="card-label">优势 01</div>
+            <h4 class="card-subtitle">全面的智能文档处理能力</h4>
+            <p>内建文档解析引擎，原生支持 PDF、Markdown、DOCX、TXT、EPUB 等多种格式，免去自行解析各类文件格式的麻烦。</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">优势 02</div>
+            <h4 class="card-subtitle">多策略的智能文本分割</h4>
+            <p>提供可视化分段调整界面，支持基于标题结构、递归分隔符、代码块等多种智能分割策略，确保每个文本片段具备完整独立的语义信息。</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">优势 03</div>
+            <h4 class="card-subtitle">大模型驱动的自动问答生成</h4>
+            <p>支持接入所有遵循 OpenAI 接口格式的大模型 API，自动从文本片段中提取问题、生成答案，还支持生成<strong>思维链</strong>。</p>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">优势 04</div>
+            <h4 class="card-subtitle">领域标签树与全局认知</h4>
+            <p>基于文档目录结构智能构建全局领域标签树，支持多维度的数据筛选和质量控制。</p>
+          </div>
+          <div class="card reveal col-span-2">
+            <div class="card-label">优势 05</div>
+            <h4 class="card-subtitle">零代码的格式验证与导出</h4>
+            <p>一键导出符合 LlamaFactory 标准的 <strong>Alpaca 格式</strong>或 <strong>ShareGPT 格式</strong> JSON 文件，彻底杜绝因格式不合法导致的系统报错。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 安装方式 -->
+      <div class="subsection" id="s4-install">
+        <h3 class="subsection-title reveal"><span class="subsection-num">4.2</span>安装方式</h3>
+        <div class="card reveal install-tabs-wrapper">
+          <div class="install-tab-bar">
+            <button class="install-tab active" data-tab="tab-desktop">
+              <span class="tab-icon">🖥️</span>
+              <span class="tab-label">桌面客户端</span>
+              <span class="tab-badge">推荐</span>
+            </button>
+            <button class="install-tab" data-tab="tab-npm">
+              <span class="tab-icon">⌨️</span>
+              <span class="tab-label">NPM 源码</span>
+            </button>
+            <button class="install-tab" data-tab="tab-docker">
+              <span class="tab-icon">🐳</span>
+              <span class="tab-label">Docker</span>
+            </button>
+          </div>
+
+          <!-- Tab 1: 桌面客户端 -->
+          <div class="install-tab-panel active" id="tab-desktop">
+            <div class="tab-panel-header">
+              <div class="tab-panel-badge">方式一</div>
+              <h4 class="tab-panel-title">桌面客户端</h4>
+              <p class="install-for">适合绝大多数零代码经验用户 · 无需配置任何编程环境</p>
+            </div>
+            <div class="tab-panel-steps">
+              <div class="tab-step">
+                <div class="tab-step-num">1</div>
+                <div class="tab-step-content">
+                  <strong>访问 GitHub Releases 页面</strong>
+                  <p>打开浏览器，访问 Easy DataSet 官方仓库的 <a href="https://github.com/ConardLi/easy-dataset/releases" target="_blank">Releases 页面</a>，根据操作系统选择对应安装包。</p>
+                </div>
+              </div>
+              <div class="tab-step">
+                <div class="tab-step-num">2</div>
+                <div class="tab-step-content">
+                  <strong>安装应用程序</strong>
+                  <p>按各操作系统常规安装流程执行（Windows 双击安装包 / macOS 拖拽至应用程序文件夹）。</p>
+                </div>
+              </div>
+              <div class="tab-step">
+                <div class="tab-step-num">3</div>
+                <div class="tab-step-content">
+                  <strong>打开并使用</strong>
+                  <p>打开安装好的应用程序，直接进入图形用户界面，新建项目并导入文件即可开始使用。</p>
+                </div>
+              </div>
+            </div>
+            <div class="install-note">门槛最低，跨平台支持 Windows / macOS / Linux</div>
+          </div>
+
+          <!-- Tab 2: NPM -->
+          <div class="install-tab-panel" id="tab-npm">
+            <div class="tab-panel-header">
+              <div class="tab-panel-badge">方式二</div>
+              <h4 class="tab-panel-title">NPM 源码本地编译</h4>
+              <p class="install-for">适合开发者 · 查看底层源码 · 功能二次开发</p>
+            </div>
+            <div class="tab-prereq">
+              <span class="prereq-label">前置要求</span>
+              <span class="prereq-item">Node.js</span>
+              <span class="prereq-item">npm</span>
+            </div>
+            <div class="code-block">
+<pre><span class="code-comment"># 1. 克隆代码仓库</span>
+git clone https://github.com/ConardLi/easy-dataset.git
+
+<span class="code-comment"># 2. 进入项目目录</span>
+cd easy-dataset
+
+<span class="code-comment"># 3. 安装依赖（需要几分钟）</span>
+npm install
+
+<span class="code-comment"># 4. 编译并启动</span>
+npm run build
+npm run start
+
+<span class="code-comment"># 5. 访问本地服务</span>
+<span class="code-comment"># 浏览器打开 → http://localhost:1717</span></pre>
+            </div>
+          </div>
+
+          <!-- Tab 3: Docker -->
+          <div class="install-tab-panel" id="tab-docker">
+            <div class="tab-panel-header">
+              <div class="tab-panel-badge">方式三</div>
+              <h4 class="tab-panel-title">Docker 容器化部署</h4>
+              <p class="install-for">适合企业级服务端统一部署 · 团队协同使用</p>
+            </div>
+            <div class="tab-prereq">
+              <span class="prereq-label">前置要求</span>
+              <span class="prereq-item">Docker</span>
+              <span class="prereq-item">Docker Compose</span>
+            </div>
+            <div class="code-block">
+<pre><span class="code-comment"># 1. 克隆仓库并进入目录</span>
+git clone https://github.com/ConardLi/easy-dataset.git
+cd easy-dataset
+
+<span class="code-comment"># 2. 确认 docker-compose.yml 配置</span>
+<span class="code-comment">#    默认将容器内部 1717 端口映射至宿主机 1717</span>
+
+<span class="code-comment"># 3. 后台启动容器服务</span>
+docker compose up -d
+
+<span class="code-comment"># 4. 验证部署</span>
+<span class="code-comment"># 浏览器访问 → http://&lt;服务器IP&gt;:1717</span></pre>
+            </div>
+            <div class="install-note">彻底隔离运行环境，避免依赖冲突，团队成员均可访问</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-course">大语言模型微调-03</div>
+      <div class="footer-copy">讲师 Zilor · 微调数据格式与制作</div>
+    </div>
+  </footer>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>
