@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>大语言模型微调-01 · Zilor</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<!-- =============================================
+     TOP BAR
+     ============================================= -->
+<header id="top-bar">
+  <div class="top-bar-left">
+    <button id="nav-open-btn" aria-label="打开目录">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="top-bar-title">大语言模型微调 · 01</span>
+  </div>
+  <div class="top-bar-right">
+    <span class="top-bar-tag">主讲讲师</span>
+    <span class="top-bar-instructor">Zilor</span>
+  </div>
+</header>
+
+<!-- NAV BACKDROP -->
+<div id="nav-backdrop"></div>
+
+<!-- =============================================
+     SIDE NAVIGATION (overlay drawer)
+     ============================================= -->
+<nav id="side-nav">
+  <div class="nav-logo">
+    <span class="logo-tag">LLM Fine-tuning · 01</span>
+    <span class="logo-title">大语言模型微调</span>
+  </div>
+
+  <ul id="nav-list">
+
+    <li class="nav-chapter">
+      <button class="nav-chapter-btn open">
+        一&nbsp;&nbsp;大语言模型的本质
+        <em class="arrow">›</em>
+      </button>
+      <ul class="nav-sub-list open">
+        <li><a href="#sec-tokenize">输入的数字化：分词与词表</a></li>
+        <li><a href="#sec-embedding">高维空间映射：词向量</a></li>
+        <li><a href="#sec-matmul">参数与矩阵乘法</a></li>
+        <li><a href="#sec-prob">概率预测与输出</a></li>
+        <li><a href="#sec-pretrain">预训练</a></li>
+      </ul>
+    </li>
+
+    <li class="nav-chapter">
+      <button class="nav-chapter-btn">
+        二&nbsp;&nbsp;微调的物理过程
+        <em class="arrow">›</em>
+      </button>
+      <ul class="nav-sub-list">
+        <li><a href="#sec-data-struct">数据的结构化重构与损失掩蔽</a></li>
+        <li><a href="#sec-forward">前向传播与强制教导</a></li>
+        <li><a href="#sec-loss">计算损失函数</a></li>
+        <li><a href="#sec-backprop">误差的反向传播</a></li>
+        <li><a href="#sec-update">参数的物理更新与迭代</a></li>
+        <li><a href="#sec-compare-ft">微调与提示词工程的根本差异</a></li>
+      </ul>
+    </li>
+
+    <li class="nav-chapter">
+      <button class="nav-chapter-btn">
+        三&nbsp;&nbsp;什么时候需要微调
+        <em class="arrow">›</em>
+      </button>
+      <ul class="nav-sub-list">
+        <li><a href="#sec-suitable">适用场景</a></li>
+        <li><a href="#sec-unsuitable">不适用场景</a></li>
+        <li><a href="#sec-rag">替代方案：RAG</a></li>
+        <li><a href="#sec-summary">总结与决策方案</a></li>
+      </ul>
+    </li>
+
+  </ul>
+</nav>
+
+<!-- =============================================
+     MAIN CONTENT
+     ============================================= -->
+<div id="main">
+
+  <!-- ==================== COVER ==================== -->
+  <section id="cover">
+    <div class="cover-inner">
+      <div class="cover-badge">
+        AI 课程 · 大语言模型微调 · Lesson 01
+      </div>
+
+      <h1 class="cover-title">
+        大语言模型<br>
+        <span class="highlight">微调</span>原理精讲
+      </h1>
+
+      <p class="cover-subtitle">
+        从物理层面深入理解 Tokenization、参数矩阵、反向传播与微调决策
+      </p>
+
+      <div class="cover-instructor">
+        <div class="instructor-avatar">Z</div>
+        <div class="instructor-info">
+          <span class="label">主讲讲师</span>
+          <span class="name">Zilor</span>
+        </div>
+      </div>
+
+      <div class="cover-toc">
+        <div class="cover-toc-title">课程目录</div>
+        <div class="cover-toc-grid">
+          <a class="cover-toc-item" href="#chapter-1">
+            <span class="toc-num">01</span>
+            <span class="toc-text">大语言模型的本质<br><small style="font-weight:400;color:var(--text-muted)">分词 · 词向量 · 矩阵乘法 · 预训练</small></span>
+          </a>
+          <a class="cover-toc-item" href="#chapter-2">
+            <span class="toc-num">02</span>
+            <span class="toc-text">微调的物理过程<br><small style="font-weight:400;color:var(--text-muted)">数据构造 · 反向传播 · 参数更新</small></span>
+          </a>
+          <a class="cover-toc-item" href="#chapter-3">
+            <span class="toc-num">03</span>
+            <span class="toc-text">什么时候需要微调<br><small style="font-weight:400;color:var(--text-muted)">适用场景 · 灾难性遗忘 · RAG 架构</small></span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ==========================================
+       CHAPTER 1: 大语言模型的本质
+       ========================================== -->
+  <section class="chapter-section" id="chapter-1">
+
+    <div class="chapter-divider">
+      <div class="divider-line left"></div>
+      <span class="divider-badge">Chapter 01</span>
+      <div class="divider-line right"></div>
+    </div>
+
+    <header class="chapter-header reveal">
+      <div class="chapter-number">CHAPTER ONE</div>
+      <h2 class="chapter-title">大语言模型的本质</h2>
+    </header>
+
+    <div class="content-block reveal">
+      <p>大型语言模型是一个运行在 GPU 上的、极其庞大且复杂的<strong>确定性数学函数</strong>。它的核心任务只有一个：接收数字化的文本输入，经过数以百亿计的矩阵乘法和加法运算，最终在输出端生成一个<strong>概率分布</strong>，预测下一个最有可能出现的词汇。</p>
+      <p>我们将大模型的运行机制拆解为五个连续的物理与计算步骤：</p>
+    </div>
+
+    <!-- 1.1 分词与词表 -->
+    <div class="subsection reveal" id="sec-tokenize" data-section>
+      <h3 class="subsection-title">输入的数字化：分词与词表</h3>
+
+      <div class="content-block">
+        <h4>1. 词表的构建</h4>
+        <p>在模型被训练之前，开发人员会为模型定义一个固定的"词表"，其中每一个基础文本单元称为 <strong>Token</strong>。主流大模型的词表大小通常在 <strong>3 万到 20 万个 Token</strong> 之间，每个 Token 有唯一整数 ID。</p>
+
+        <h4>2. 分词的过程</h4>
+        <p>分词器通过字符串匹配算法，将用户输入的长文本切分成一个个 Token，并将其转换为整数 ID，形成一维整数数组。</p>
+      </div>
+
+      <!-- ANIMATION: Tokenization -->
+      <div class="anim-container reveal" id="anim-token">
+        <div class="anim-header">
+          <span class="anim-label">🔬 动画演示 · 分词过程</span>
+          <button class="replay-btn" data-replay="anim-token" data-type="token">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            重播
+          </button>
+        </div>
+        <div class="arrow-anim">
+          <span>原始文本</span>
+          <div class="arrow-line"></div>
+          <span>Token 序列</span>
+        </div>
+        <div class="token-anim-layout">
+          <div class="token-rows">
+            <div class="token-row" id="token-row-instruction">
+              <span class="token-row-label">指令</span>
+              <div class="token-row-chips"></div>
+            </div>
+            <div class="token-row" id="token-row-input">
+              <span class="token-row-label">输入</span>
+              <div class="token-row-chips"></div>
+            </div>
+            <div class="token-row" id="token-row-output">
+              <span class="token-row-label">输出</span>
+              <div class="token-row-chips"></div>
+            </div>
+          </div>
+          <div class="token-legend">
+            <div class="token-legend-item"><span class="token-chip type-special" style="opacity:1;transform:none;font-size:11px;position:relative">特殊标记</span></div>
+            <div class="token-legend-item"><span class="token-chip type-word"    style="opacity:1;transform:none;font-size:11px;position:relative">完整词</span></div>
+            <div class="token-legend-item"><span class="token-chip type-sub"     style="opacity:1;transform:none;font-size:11px;position:relative">子词</span></div>
+            <div class="token-legend-item"><span class="token-chip type-punct"   style="opacity:1;transform:none;font-size:11px;position:relative">标点</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1.2 词向量 -->
+    <div class="subsection reveal" id="sec-embedding" data-section>
+      <h3 class="subsection-title">高维空间映射：词向量</h3>
+
+      <div class="content-block">
+        <p>离散整数 ID 之间没有数学关联，无法进行语义计算。因此需要将其转化为高维浮点数数组——<strong>词向量</strong>。现代大模型的内部空间维度通常在 <strong>4096 维到 12288 维</strong>之间。</p>
+        <div class="key-concept">
+          <p><strong>关键洞见：</strong>语义相近的词（如"苹果"和"香蕉"），其向量在高维空间中的几何距离很近；语义无关的词（如"苹果"和"挖掘机"）距离则很远。词与词之间的语法关系，以向量差值的方向表示。</p>
+        </div>
+      </div>
+
+      <!-- ANIMATION: Vector Space -->
+      <div class="anim-container reveal" id="anim-vector">
+        <div class="anim-header">
+          <span class="anim-label">🔬 动画演示 · 词向量语义距离</span>
+          <button class="replay-btn" data-replay="anim-vector" data-type="vector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            重播
+          </button>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">高维词向量降维后的二维投影——语义相近的词在空间中聚集，语义无关的词相距甚远。</p>
+        <svg id="vector-scatter" class="vector-scatter-svg" viewBox="0 0 500 280" xmlns="http://www.w3.org/2000/svg">
+          <!-- Grid -->
+          <defs>
+            <pattern id="sgrid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(26,48,80,.6)" stroke-width=".5"/>
+            </pattern>
+            <radialGradient id="cluster-a" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#00d4ff" stop-opacity=".08"/>
+              <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="cluster-b" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#445566" stop-opacity=".12"/>
+              <stop offset="100%" stop-color="#445566" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="500" height="280" fill="url(#sgrid)"/>
+          <!-- Axis labels -->
+          <text x="6" y="14" font-family="monospace" font-size="9" fill="#2a4060">维度 1</text>
+          <text x="440" y="275" font-family="monospace" font-size="9" fill="#2a4060">维度 2</text>
+          <!-- Cluster halos (hidden initially, revealed by JS) -->
+          <ellipse class="scatter-cluster" id="sc-halo-a" cx="155" cy="120" rx="90" ry="70" fill="url(#cluster-a)" opacity="0"/>
+          <ellipse class="scatter-cluster" id="sc-halo-b" cx="380" cy="180" rx="80" ry="65" fill="url(#cluster-b)" opacity="0"/>
+          <!-- Distance line (hidden initially) -->
+          <line class="scatter-dist-line" id="sc-dist" x1="155" y1="120" x2="380" y2="180" stroke="#ff4757" stroke-width="1" stroke-dasharray="5 4" opacity="0"/>
+          <!-- Dots + labels (hidden initially, revealed by JS) -->
+          <!-- Fruit cluster -->
+          <g class="scatter-dot" data-cluster="a" opacity="0">
+            <circle cx="130" cy="100" r="7" fill="#00d4ff" opacity=".9"/>
+            <text x="142" y="97" font-family="'Noto Serif SC',serif" font-size="13" fill="#e8f0fe" font-weight="700">苹果</text>
+            <text x="142" y="110" font-family="monospace" font-size="9" fill="#00d4ff">[0.82, 0.41]</text>
+          </g>
+          <g class="scatter-dot" data-cluster="a" opacity="0">
+            <circle cx="178" cy="135" r="7" fill="#00d4ff" opacity=".9"/>
+            <text x="190" y="132" font-family="'Noto Serif SC',serif" font-size="13" fill="#e8f0fe" font-weight="700">香蕉</text>
+            <text x="190" y="145" font-family="monospace" font-size="9" fill="#00d4ff">[0.79, 0.45]</text>
+          </g>
+          <g class="scatter-dot" data-cluster="a" opacity="0">
+            <circle cx="112" cy="148" r="6" fill="#0096cc" opacity=".8"/>
+            <text x="122" y="152" font-family="'Noto Serif SC',serif" font-size="12" fill="#8ca0ba">橙子</text>
+          </g>
+          <g class="scatter-dot" data-cluster="a" opacity="0">
+            <circle cx="163" cy="96" r="5" fill="#0096cc" opacity=".7"/>
+            <text x="172" y="100" font-family="'Noto Serif SC',serif" font-size="12" fill="#8ca0ba">葡萄</text>
+          </g>
+          <g class="scatter-dot" data-cluster="a" opacity="0">
+            <circle cx="142" cy="160" r="5" fill="#0096cc" opacity=".6"/>
+            <text x="152" y="164" font-family="'Noto Serif SC',serif" font-size="12" fill="#8ca0ba">芒果</text>
+          </g>
+          <!-- Machine cluster -->
+          <g class="scatter-dot" data-cluster="b" opacity="0">
+            <circle cx="360" cy="165" r="7" fill="#445566" opacity=".9"/>
+            <text x="372" y="162" font-family="'Noto Serif SC',serif" font-size="13" fill="#8ca0ba" font-weight="700">挖掘机</text>
+            <text x="372" y="175" font-family="monospace" font-size="9" fill="#556677">[0.11, 0.88]</text>
+          </g>
+          <g class="scatter-dot" data-cluster="b" opacity="0">
+            <circle cx="398" cy="195" r="6" fill="#334455" opacity=".8"/>
+            <text x="408" y="199" font-family="'Noto Serif SC',serif" font-size="12" fill="#8ca0ba">推土机</text>
+          </g>
+          <g class="scatter-dot" data-cluster="b" opacity="0">
+            <circle cx="365" cy="208" r="5" fill="#334455" opacity=".7"/>
+            <text x="374" y="212" font-family="'Noto Serif SC',serif" font-size="12" fill="#8ca0ba">铲车</text>
+          </g>
+        </svg>
+        <div style="margin-top:12px;padding:10px 16px;background:rgba(0,0,0,.2);border-radius:4px;font-family:var(--font-mono);font-size:12px;color:var(--text-muted)">
+          余弦相似度：苹果↔香蕉 = <span style="color:var(--green)">0.91</span>&nbsp;&nbsp;|&nbsp;&nbsp;苹果↔挖掘机 = <span style="color:var(--red)">0.08</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1.3 矩阵乘法 -->
+    <div class="subsection reveal" id="sec-matmul" data-section>
+      <h3 class="subsection-title">参数与矩阵乘法</h3>
+
+      <div class="content-block">
+        <h4>1. 参数的物理定义</h4>
+        <p>大模型的"参数"是神经网络中的<strong>权重（Weights）</strong>和<strong>偏置（Biases）</strong>，以大量浮点数值的形式静态存储在显卡内存（VRAM）的矩阵中。模型的知识、逻辑、语法能力，全部以这些浮点数的特定数值组合存储其中。</p>
+
+        <h4>2. 前向传播：数据的逐层计算</h4>
+        <p>输入文本的向量矩阵进入模型后，会自下而上依次穿过模型的每一个计算层，在每一层与该层的参数矩阵进行密集的<strong>矩阵乘法</strong>操作，触发注意力机制，逐层提取越来越高级的语义特征。</p>
+
+        <div class="key-concept">
+          <p><strong>注意力机制：</strong>"银行"这个词，在与"河流"共同出现时，其向量会被修改为偏向"河岸"的语义；在与"金融"共同出现时，则偏向"金融机构"的语义。上下文信息通过矩阵运算被注入词向量。</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 1.4 概率预测 -->
+    <div class="subsection reveal" id="sec-prob" data-section>
+      <h3 class="subsection-title">概率预测与输出</h3>
+
+      <div class="content-block">
+        <p>经过数十个隐藏层的运算后，最终输出的高维向量会通过<strong>输出矩阵</strong>压缩到词表大小的维度（如 100000 维），得到对数几率（Logits）。再经过 <strong>Softmax</strong> 函数转换为严格的概率分布。</p>
+      </div>
+
+      <!-- ANIMATION: Prob distribution -->
+      <div class="anim-container reveal" id="anim-prob">
+        <div class="anim-header">
+          <span class="anim-label">🔬 动画演示 · 输出概率分布</span>
+          <button class="replay-btn" data-replay="anim-prob" data-type="prob">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            重播
+          </button>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:20px">
+          输入：<span style="font-family:var(--font-mono);color:var(--text-primary)">"今天天气很好，我们去公园摘 ___"</span>
+        </p>
+        <div class="prob-chart">
+          <div class="prob-row">
+            <div class="prob-label">"苹果"</div>
+            <div class="prob-bar-track">
+              <div class="prob-bar-fill top" style="width:85%">
+                <span class="prob-pct">85%</span>
+              </div>
+            </div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">"草莓"</div>
+            <div class="prob-bar-track">
+              <div class="prob-bar-fill second" style="width:10%">
+                <span class="prob-pct">10%</span>
+              </div>
+            </div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">"句号"</div>
+            <div class="prob-bar-track">
+              <div class="prob-bar-fill third" style="width:4%">
+                <span class="prob-pct">4%</span>
+              </div>
+            </div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-label">其余词</div>
+            <div class="prob-bar-track">
+              <div class="prob-bar-fill rest" style="width:1%">
+                <span class="prob-pct" style="color:var(--text-muted)">1%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:.8rem;color:var(--text-muted)">
+          输出的概率总和 = <span style="color:var(--green);font-family:var(--font-mono)">1.000</span>（Softmax 保证）
+        </div>
+      </div>
+
+      <div class="content-block reveal">
+        <h4>自回归生成（Autoregressive Generation）</h4>
+        <p>生成的 Token 被附加到输入序列末尾，再次进行完整的全参数矩阵运算，预测下一个词。这就是大模型文本"逐字蹦出"的根本原因——每输出一个字，都是一次完整的数百亿参数矩阵运算。</p>
+      </div>
+    </div>
+
+    <!-- 1.5 预训练 -->
+    <div class="subsection reveal" id="sec-pretrain" data-section>
+      <h3 class="subsection-title">预训练</h3>
+
+      <div class="content-block">
+        <p>预训练是大模型诞生前最漫长、最昂贵的物理过程。在数千张顶级 GPU 组成的计算集群中，对数十 TB 级别的高质量纯文本数据进行<strong>自监督学习</strong>。</p>
+      </div>
+
+      <div class="step-list reveal">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <strong>遮挡与预测</strong>
+            <p>从海量文本截取片段（如"地球是太阳系由内及外的第三颗___"），隐藏最后一个词，输入给参数随机的模型。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <strong>前向计算</strong>
+            <p>模型使用当前随机参数进行海量矩阵运算，给出一个概率分布（此时大概率预测错误）。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <strong>计算误差 Loss</strong>
+            <p>将预测结果与真实答案对比，用<strong>交叉熵损失函数</strong>计算出一个标量误差值。误差越大，预测越偏离正确答案。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <strong>反向传播</strong>
+            <p>通过微积分的<strong>链式法则</strong>，从输出层逆向计算出每一个参数的"梯度"——即应该增大还是减小的方向与幅度。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <strong>优化迭代</strong>
+            <p>优化器按照梯度方向，将数百亿个参数的数值稍微修改一个极小的幅度（由学习率控制），模型向"正确"方向微小挪动。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="key-concept reveal">
+        <p><strong>宏观涌现：</strong>上述循环在 GPU 集群中以每秒数万次的速度不分昼夜运行数月，最终将人类语言的底层统计规律、语法结构、逻辑推导和世界常识，高度压缩编码进数百亿参数的浮点数值分布中——这就是"预训练基座模型"。</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ==========================================
+       CHAPTER 2: 微调的物理过程
+       ========================================== -->
+  <section class="chapter-section" id="chapter-2">
+
+    <div class="chapter-divider">
+      <div class="divider-line left"></div>
+      <span class="divider-badge">Chapter 02</span>
+      <div class="divider-line right"></div>
+    </div>
+
+    <header class="chapter-header reveal">
+      <div class="chapter-number">CHAPTER TWO</div>
+      <h2 class="chapter-title">微调的物理过程</h2>
+    </header>
+
+    <div class="content-block reveal">
+      <p>预训练基座模型仅是被优化用于"续写文本"的机器——若输入"中国的首都是哪里？"，它大概率不会答"北京"，而是继续输出"日本的首都是哪里？美国的首都是哪里？"。</p>
+      <p>微调是一个<strong>"基于误差反向传播，对模型内部原有参数矩阵进行有针对性的小幅度二次修改"</strong>的完整计算工程。</p>
+    </div>
+
+    <!-- 2.1 数据结构化 -->
+    <div class="subsection reveal" id="sec-data-struct" data-section>
+      <h3 class="subsection-title">数据的结构化重构与损失掩蔽</h3>
+
+      <div class="content-block">
+        <h4>1. 结构化数据的拼接与向量化</h4>
+        <p>微调数据通常组织为 JSON 格式的"问答对"，系统使用特殊标记将字段拼接为完整字符串，再经分词器转化为 Token 序列进入模型计算。</p>
+
+        <h4>2. 损失掩蔽（Loss Masking）</h4>
+        <p>微调的目标是让模型学会"根据问题生成答案"，而非学习如何提问。因此系统为输入矩阵生成一个掩蔽矩阵：对应"问题"部分标记为 0（忽略），对应"答案"部分标记为 1（计算误差）。</p>
+      </div>
+
+      <!-- ANIMATION: Mask demo -->
+      <div class="anim-container reveal" id="anim-mask">
+        <div class="anim-header">
+          <span class="anim-label">🔬 动画演示 · 损失掩蔽效果</span>
+          <button class="replay-btn" data-replay="anim-mask" data-type="mask">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            重播
+          </button>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:12px">点击重播后，蓝色"指令"部分将被遮蔽（Loss=0），只有绿色"答案"部分参与误差计算。</p>
+        <div class="mask-demo">
+          <span class="mask-token instruction">[指令开始]</span>
+          <span class="mask-token instruction">请提取</span>
+          <span class="mask-token instruction">以下</span>
+          <span class="mask-token instruction">文本</span>
+          <span class="mask-token instruction">中的</span>
+          <span class="mask-token instruction">地名</span>
+          <span class="mask-token instruction">[背景]</span>
+          <span class="mask-token instruction">我</span>
+          <span class="mask-token instruction">明天</span>
+          <span class="mask-token instruction">要去</span>
+          <span class="mask-token instruction">上海</span>
+          <span class="mask-token instruction">出差</span>
+          <span class="mask-token instruction">[输出开始]</span>
+          <span class="mask-token answer">上海</span>
+          <span class="mask-token answer">[结束]</span>
+        </div>
+        <div class="mask-legend">
+          <div class="mask-legend-item">
+            <div class="legend-dot" style="background:rgba(245,200,66,.5)"></div>
+            <span>指令/输入部分 → 掩蔽（Mask=0，不计算误差）</span>
+          </div>
+          <div class="mask-legend-item">
+            <div class="legend-dot" style="background:rgba(0,212,255,.5)"></div>
+            <span>期望答案部分 → 激活（Mask=1，计算误差）</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.2 前向传播 -->
+    <div class="subsection reveal" id="sec-forward" data-section>
+      <h3 class="subsection-title">前向传播与强制教导</h3>
+
+      <div class="content-block">
+        <h4>1. 并行计算与非自回归生成</h4>
+        <p>在微调阶段，由于显卡内存中已有完整的标准答案，系统将整个序列（例如 1024 个 Token 的矩阵）<strong>一次性平行输入</strong>到模型的数十个隐藏层中，同时进行数万亿次浮点乘加运算，以最大化 GPU 并行效率。</p>
+
+        <h4>2. 强制教导策略（Teacher Forcing）</h4>
+        <p>模型针对第 N 个位置的预测，其上下文始终是来自数据集的前 N-1 个<strong>真实 Token</strong>，而非模型自己的预测结果。这从物理上保证了误差不会在序列中累积放大，每个位置都在纯净的真实上下文中进行计算。</p>
+      </div>
+    </div>
+
+    <!-- 2.3 损失函数 -->
+    <div class="subsection reveal" id="sec-loss" data-section>
+      <h3 class="subsection-title">计算损失函数</h3>
+
+      <div class="content-block">
+        <h4>交叉熵损失</h4>
+        <p>将模型预测的概率分布，与标准答案的 <strong>One-Hot 编码</strong>（目标词概率=1.0，其余=0.0）对比，计算出一个具体的标量误差值。误差越大，参数越偏离期望状态；微调的终极目标是让误差趋近于 0。</p>
+      </div>
+
+      <!-- Loss curve SVG animation -->
+      <div class="anim-container reveal" id="anim-loss">
+        <div class="anim-header">
+          <span class="anim-label">🔬 动画演示 · 训练损失下降曲线</span>
+          <button class="replay-btn" data-replay="anim-loss" data-type="loss" data-svg="loss-svg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            重播
+          </button>
+        </div>
+        <div class="loss-curve-wrap">
+          <svg id="loss-svg" viewBox="0 0 600 130" preserveAspectRatio="none">
+            <!-- Grid lines -->
+            <line x1="0" y1="20" x2="600" y2="20" stroke="#1a3050" stroke-width="1"/>
+            <line x1="0" y1="50" x2="600" y2="50" stroke="#1a3050" stroke-width="1"/>
+            <line x1="0" y1="80" x2="600" y2="80" stroke="#1a3050" stroke-width="1"/>
+            <line x1="0" y1="110" x2="600" y2="110" stroke="#1a3050" stroke-width="1"/>
+            <!-- Labels -->
+            <text x="4" y="18" fill="#445566" font-family="monospace" font-size="9">3.0</text>
+            <text x="4" y="48" fill="#445566" font-family="monospace" font-size="9">2.0</text>
+            <text x="4" y="78" fill="#445566" font-family="monospace" font-size="9">1.0</text>
+            <text x="4" y="108" fill="#445566" font-family="monospace" font-size="9">0.2</text>
+            <!-- Loss curve path -->
+            <path class="loss-path"
+              d="M 20,15 C 60,16 90,22 130,35 C 170,48 200,60 240,72 C 280,82 310,88 350,96 C 390,102 430,107 470,110 C 510,112 550,113 580,113"
+              fill="none"
+              stroke="url(#lossGrad)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            />
+            <!-- Gradient def -->
+            <defs>
+              <linearGradient id="lossGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%"   stop-color="#ff4757"/>
+                <stop offset="50%"  stop-color="#f5c842"/>
+                <stop offset="100%" stop-color="#39d98a"/>
+              </linearGradient>
+            </defs>
+            <!-- Moving dot -->
+            <circle class="loss-dot" cx="20" cy="15" r="5" fill="#ffffff" opacity="0.9"/>
+          </svg>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);padding-top:4px">
+          <span>训练开始</span><span>Step / Iteration →</span><span>训练收敛</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.4 反向传播 -->
+    <div class="subsection reveal" id="sec-backprop" data-section>
+      <h3 class="subsection-title">误差的反向传播</h3>
+
+      <div class="content-block">
+        <h4>梯度的数学定义</h4>
+        <p>"梯度"是一个与模型参数矩阵形状完全相同的新矩阵，记录着每一个参数应该增大还是减小、幅度有多大。</p>
+
+        <h4>链式法则的逐层推导</h4>
+        <p>反向传播从最后一层（输出层）开始，逆着前向传播方向逐层计算。为了准确计算每一层的梯度，显卡必须<strong>保留所有中间激活值</strong>直到反向传播完成——这就是为什么微调对显存的要求远高于推理。</p>
+
+        <div class="warning-box">
+          <p><strong>显存消耗警告：</strong>微调时显卡需同时持有：原始参数矩阵 + 梯度矩阵 + 优化器状态矩阵 + 中间激活值。一个 7B 参数的模型推理约需 14GB 显存，而微调则可能需要 <strong>60GB+ 显存</strong>。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.5 参数更新 -->
+    <div class="subsection reveal" id="sec-update" data-section>
+      <h3 class="subsection-title">参数的物理更新与迭代</h3>
+
+      <div class="content-block">
+        <h4>学习率的物理约束</h4>
+        <p>梯度只是局部的切线斜率，不能直接叠加到参数上。必须乘以极小的缩放系数——<strong>学习率（Learning Rate）</strong>——控制每步更新幅度，防止越过最优解导致模型崩溃。</p>
+
+        <h4>内存中的数值覆写</h4>
+        <p>优化器执行全矩阵加减法：旧参数 − (梯度 × 学习率) = 新参数，直接覆写显存中的旧数值。模型内部发生了一次<strong>永久性的微小改变</strong>。</p>
+      </div>
+
+      <!-- ANIMATION: Training Loop -->
+      <div class="anim-container reveal" id="anim-loop">
+        <div class="anim-header">
+          <span class="anim-label">🔬 动画演示 · 微调训练循环</span>
+          <button class="replay-btn" data-replay="anim-loop" data-type="loop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            重播
+          </button>
+        </div>
+        <div class="loop-steps">
+          <div class="loop-step"><span class="step-icon">📄</span>加载批数据</div>
+          <div class="loop-step"><span class="step-icon">➡️</span>前向传播</div>
+          <div class="loop-step"><span class="step-icon">📊</span>计算 Loss</div>
+          <div class="loop-step"><span class="step-icon">⬅️</span>反向传播</div>
+          <div class="loop-step"><span class="step-icon">✏️</span>更新参数</div>
+        </div>
+        <div class="loss-display">
+          <div class="loss-number">2.850</div>
+          <div class="loss-label">Current Loss</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.6 微调 vs 提示词工程 -->
+    <div class="subsection reveal" id="sec-compare-ft" data-section>
+      <h3 class="subsection-title">微调与提示词工程的根本物理差异</h3>
+
+      <div class="compare-grid">
+        <div class="compare-card prompt">
+          <h4>💬 提示词工程</h4>
+          <div class="compare-item">动态上下文控制，改变临时中间变量</div>
+          <div class="compare-item">不存在反向传播，不存在梯度计算</div>
+          <div class="compare-item">模型基础参数永远不变</div>
+          <div class="compare-item">关闭对话窗口后效果消失</div>
+          <div class="compare-item">记忆依赖上下文窗口，短暂且表层</div>
+        </div>
+        <div class="compare-card finetune">
+          <h4>⚙️ 微调</h4>
+          <div class="compare-item">触发反向传播引擎，永久修改权重</div>
+          <div class="compare-item">消耗大量算力与时间</div>
+          <div class="compare-item">模型底层数学结构被物理重塑</div>
+          <div class="compare-item">即使无提示词，行为已自动改变</div>
+          <div class="compare-item">记忆内化在模型骨架中，长期稳定</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ==========================================
+       CHAPTER 3: 什么时候需要微调
+       ========================================== -->
+  <section class="chapter-section" id="chapter-3">
+
+    <div class="chapter-divider">
+      <div class="divider-line left"></div>
+      <span class="divider-badge">Chapter 03</span>
+      <div class="divider-line right"></div>
+    </div>
+
+    <header class="chapter-header reveal">
+      <div class="chapter-number">CHAPTER THREE</div>
+      <h2 class="chapter-title">什么时候需要微调</h2>
+    </header>
+
+    <div class="content-block reveal">
+      <p>微调的核心判断标准：我们是希望改变模型输出的<strong>"概率分布模式"</strong>，还是希望增加模型内部的<strong>"静态数据总量"</strong>？</p>
+      <div class="key-concept">
+        <p>微调只能改变<strong>行为模式</strong>（怎么回答），无法有效注入<strong>新事实知识</strong>（知道什么）。</p>
+      </div>
+    </div>
+
+    <!-- 3.1 适用场景 -->
+    <div class="subsection reveal" id="sec-suitable" data-section>
+      <h3 class="subsection-title">适用场景：模式对齐与输出分布重构</h3>
+
+      <div class="content-block">
+        <h4>场景一：结构化格式的严格对齐</h4>
+        <p><strong>痛点：</strong>未经微调的模型即使被要求"只输出 JSON"，其参数计算出的概率分布仍极有可能在开头生成"好的，以下是为您提取的 JSON 格式数据："——哪怕多一个标点，下游代码系统就会崩溃。</p>
+        <p><strong>微调效果：</strong>通过反向传播，系统性地<strong>压制</strong>自然语言词汇的输出几率，<strong>抬升</strong> <code style="font-family:var(--font-mono);font-size:.85em;background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px">{</code>、<code style="font-family:var(--font-mono);font-size:.85em;background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px">"</code>、<code style="font-family:var(--font-mono);font-size:.85em;background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px">[</code> 等结构化符号的输出几率，从根本上消除格式不确定性。</p>
+      </div>
+
+      <div class="content-block reveal">
+        <h4>场景二：特定领域语气、风格与行为规范的固化</h4>
+        <p><strong>痛点：</strong>基座模型默认参数学自大量口语化网络文本，可能在专业法律咨询中夹杂"大概"、"我觉得"等不严谨词汇。</p>
+        <p><strong>微调效果：</strong>通过数千条专业律师撰写的对话数据，反向传播精准定位控制词汇选择的参数层，使专业术语的输出几率被<strong>永久性调高</strong>。无需每次通过冗长提示词约束语气。</p>
+      </div>
+
+      <div class="content-block reveal">
+        <h4>场景三：垂直领域固定任务的逻辑强化</h4>
+        <p><strong>痛点：</strong>医疗"病历信息抽取"任务中，原始文本冗长混乱，模型的注意力计算资源容易被无关 Token 干扰，导致提取遗漏。</p>
+        <p><strong>微调效果：</strong>模型内部的注意力机制权重矩阵发生物理重组——对无关闲聊赋予极低注意力权重，对医学专业名词和时间节点赋予极高权重。这种<strong>"专业且抗干扰的提取逻辑"</strong>直接硬编码进参数矩阵。</p>
+      </div>
+    </div>
+
+    <!-- 3.2 不适用场景 -->
+    <div class="subsection reveal" id="sec-unsuitable" data-section>
+      <h3 class="subsection-title">不适用场景：动态知识的注入与记忆</h3>
+
+      <div class="content-block">
+        <div class="warning-box">
+          <p><strong>最常见且最致命的技术误区：</strong>企图通过微调让大语言模型"记住"新的事实、新的文章或企业内部数据库。</p>
+        </div>
+      </div>
+
+      <div class="step-list reveal">
+        <div class="step-card">
+          <div class="step-num" style="background:var(--red)">!</div>
+          <div class="step-content">
+            <strong>非隔离性存储</strong>
+            <p>大模型的知识<strong>弥散且重叠</strong>地分布在数百亿参数中，关于"相对论"的知识和关于"苹果派菜谱"的知识，可能共享数百万个相同的权重参数——不存在类似数据库表的物理隔离。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num" style="background:var(--red)">!</div>
+          <div class="step-content">
+            <strong>灾难性遗忘（Catastrophic Forgetting）</strong>
+            <p>强行将财报数据写入参数时，被修改的参数原本可能负责维持"基础数学加减法"或"通用语法结构"。新知识的强制覆盖直接破坏原有参数的高维空间拓扑结构，导致模型丧失逻辑推理能力甚至输出乱码。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num" style="background:var(--orange)">!</div>
+          <div class="step-content">
+            <strong>算力浪费与幻觉</strong>
+            <p>通过海量矩阵运算将纯文本压缩成几个浮点数的微小改变，数据转化效率极低，通常需要将同一篇文章循环训练数十次。且当被问及未在训练数据中明确写出的细节时，模型极有可能用严谨的语气<strong>编造出完全不存在的虚假数字</strong>（幻觉）。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3.3 RAG -->
+    <div class="subsection reveal" id="sec-rag" data-section>
+      <h3 class="subsection-title">替代方案：检索增强生成（RAG）</h3>
+
+      <div class="content-block">
+        <p>RAG 的核心物理理念：<strong>将"动态的知识存储"与"静态的逻辑推理引擎"在物理上彻底剥离</strong>。绝不修改大模型的任何内部参数，而是在输入端进行数据的动态组装。</p>
+      </div>
+
+      <div class="step-list reveal">
+        <div class="step-card">
+          <div class="step-num" style="background:var(--green)">1</div>
+          <div class="step-content">
+            <strong>外部知识库的向量化存储</strong>
+            <p>将大量外部文件切割成文本块，使用嵌入模型转换为高维浮点数向量，存储在独立的<strong>向量数据库</strong>中。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num" style="background:var(--green)">2</div>
+          <div class="step-content">
+            <strong>用户查询的数学映射与检索</strong>
+            <p>将用户问题转换为向量，在向量数据库中进行余弦相似度的几何数学运算，找出高维空间中距离最近的相关文档块。</p>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num" style="background:var(--green)">3</div>
+          <div class="step-content">
+            <strong>上下文组装与一次性推理</strong>
+            <p>系统自动将检索到的相关文本与用户问题拼接成巨大的提示词，一次性输入大模型。由于最新知识已作为临时上下文存在于输入端，模型的注意力机制可以精准聚焦于这些文本输出准确答案。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box reveal">
+        <p><strong>RAG 的物理优势：</strong>整个过程中模型权重参数零修改，完全杜绝灾难性遗忘。若知识更新，只需修改向量数据库中的对应条目，无需重新训练大模型。</p>
+      </div>
+    </div>
+
+    <!-- 3.4 总结 -->
+    <div class="subsection reveal" id="sec-summary" data-section>
+      <h3 class="subsection-title">总结与决策方案</h3>
+
+      <div class="decision-grid reveal">
+        <div class="decision-card opt-1">
+          <span class="decision-icon">💬</span>
+          <h4>首选：提示词工程</h4>
+          <p>临时改变身份、遵循简单步骤、基础逻辑推演</p>
+          <span class="cost-badge">零算力修改成本</span>
+        </div>
+        <div class="decision-card opt-2">
+          <span class="decision-icon">🗄️</span>
+          <h4>知识型：RAG</h4>
+          <p>新知识注入、私有数据、长文档、严格避免知识幻觉</p>
+          <span class="cost-badge">向量数据库成本</span>
+        </div>
+        <div class="decision-card opt-3">
+          <span class="decision-icon">⚙️</span>
+          <h4>终极武器：微调</h4>
+          <p>严苛输出格式、固化专业行为模式、抗干扰逻辑强化</p>
+          <span class="cost-badge">极高：GPU集群 + 时间</span>
+        </div>
+      </div>
+
+      <div class="key-concept reveal" style="margin-top:32px">
+        <p><strong>微调是一个严密的、建立在误差反馈机制之上的巨型矩阵数值更新工程。</strong>它将特定领域的知识和规范，通过微积分的法则，硬编码进大型语言模型的底层数学结构之中。只有在提示词工程和 RAG 都无法解决的"概率分布模式"问题时，才应动用这一高成本武器。</p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Footer -->
+  <footer style="padding:40px max(24px, calc((100% - 960px) / 2));border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:gap">
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+      大语言模型微调-01 · AI 班 第八单元
+    </div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">
+      讲师 Zilor
+    </div>
+  </footer>
+
+</div><!-- /#main -->
+
+<script src="assets/main.js"></script>
+</body>
+</html>

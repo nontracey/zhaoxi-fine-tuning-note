@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大语言模型微调-02 | Zilor</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ============================================
+     NAVIGATION BAR
+     ============================================ -->
+<nav id="navbar">
+  <div class="nav-brand">大语言模型微调-02</div>
+
+  <div class="nav-center">
+    <ul class="nav-menu">
+
+      <li class="nav-item" data-section="sec1">
+        <a href="#sec1">01 算力瓶颈</a>
+        <ul class="nav-dropdown">
+          <li><a href="#sec1-1">全参数微调</a></li>
+          <li><a href="#sec1-2">本征维度</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item" data-section="sec2">
+        <a href="#sec2">02 LoRA 架构</a>
+        <ul class="nav-dropdown">
+          <li><a href="#sec2-1">基础参数冻结</a></li>
+          <li><a href="#sec2-2">附加模块注入</a></li>
+          <li><a href="#sec2-3">低秩矩阵拆解</a></li>
+          <li><a href="#sec2-4">双路数据流转</a></li>
+          <li><a href="#sec2-5">物理合并机制</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item" data-section="sec3">
+        <a href="#sec3">03 本地环境</a>
+        <ul class="nav-dropdown">
+          <li><a href="#sec3-1">CUDA 验证</a></li>
+          <li><a href="#sec3-2">UV 虚拟环境</a></li>
+          <li><a href="#sec3-3">PyTorch 安装</a></li>
+          <li><a href="#sec3-4">测试环境</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item" data-section="sec4">
+        <a href="#sec4">04 LLaMA-Factory</a>
+        <ul class="nav-dropdown">
+          <li><a href="#sec4-1">框架介绍</a></li>
+          <li><a href="#sec4-2">配置与安装</a></li>
+          <li><a href="#sec4-3">基础推理</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item" data-section="sec5">
+        <a href="#sec5">05 工作台</a>
+        <ul class="nav-dropdown">
+          <li><a href="#sec5-1">模型与来源</a></li>
+          <li><a href="#sec5-2">微调策略</a></li>
+          <li><a href="#sec5-3">量化配置</a></li>
+          <li><a href="#sec5-4">训练</a></li>
+          <li><a href="#sec5-5">评估与预测</a></li>
+          <li><a href="#sec5-6">对话测试</a></li>
+          <li><a href="#sec5-7">导出模型</a></li>
+        </ul>
+      </li>
+
+    </ul>
+  </div>
+
+  <div class="nav-instructor">ZILOR</div>
+</nav>
+
+
+<!-- ============================================
+     COVER / HERO
+     ============================================ -->
+<section id="cover">
+  <div class="cover-grid"></div>
+  <div class="cover-glow"></div>
+  <div class="cover-glow-2"></div>
+
+  <div class="cover-content">
+    <div class="cover-label">程序员 AI 课堂</div>
+    <h1 class="cover-title">大语言模型微调</h1>
+    <p class="cover-subtitle">从算力瓶颈到 LoRA 高效微调，再到本地工程落地</p>
+    <div class="cover-instructor"><span>讲师</span>ZILOR</div>
+
+    <div class="cover-toc stagger">
+      <a class="toc-item" href="#sec1">
+        <div class="toc-num">01 —</div>
+        <div class="toc-title">全参数微调的算力瓶颈</div>
+      </a>
+      <a class="toc-item" href="#sec2">
+        <div class="toc-num">02 —</div>
+        <div class="toc-title">LoRA 的核心物理架构</div>
+      </a>
+      <a class="toc-item" href="#sec3">
+        <div class="toc-num">03 —</div>
+        <div class="toc-title">搭建本地微调运行环境</div>
+      </a>
+      <a class="toc-item" href="#sec4">
+        <div class="toc-num">04 —</div>
+        <div class="toc-title">部署 LLaMA-Factory 微调框架</div>
+      </a>
+      <a class="toc-item" href="#sec5">
+        <div class="toc-num">05 —</div>
+        <div class="toc-title">LLaMA-Factory 工作台介绍</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="scroll-cue">SCROLL</div>
+</section>
+
+
+<main>
+
+<!-- ============================================
+     SECTION 1: 全参数微调的算力瓶颈
+     ============================================ -->
+<section id="sec1" class="section-wrapper">
+  <div class="section-content">
+    <div class="section-num reveal">CHAPTER 01</div>
+    <h2 class="section-heading reveal">全参数微调的<span class="accent">算力瓶颈</span></h2>
+
+    <div class="reveal">
+      <p>在上节课中，我们从物理与数学层面剖析了大型语言模型的本质。大模型是一个由海量参数构成的复杂数学函数。在"预训练"阶段，模型通过大规模计算海量文本，确立了基础的参数数值，从而具备了语言能力与常识。</p>
+      <p>而"微调"则是利用结构化的特定领域数据，计算输出结果与标准答案的误差，并通过反向传播永久性地修改模型内部一小部分权重的数值。</p>
+      <p>既然微调需要计算梯度并更新底层参数，这必然带来一个严峻的问题：修改模型所有参数的<span class="hl">"全参数微调"</span>需要极高的显存和算力，个人或普通企业难以承受。</p>
+    </div>
+
+    <!-- VRAM Animation -->
+    <div class="anim-container reveal" id="anim-vram">
+      <div class="anim-header">
+        <span class="anim-title">显存需求对比</span>
+        <button class="replay-btn" id="replay-vram">↺ 重播</button>
+      </div>
+      <div class="vram-chart">
+        <div class="vram-row">
+          <div class="vram-info">
+            <span class="vram-name">全参数微调（7B 模型）</span>
+            <span class="vram-val" style="color: var(--accent-danger)">60 ~ 80 GB</span>
+          </div>
+          <div class="vram-bar-wrap">
+            <div class="vram-bar full-vram" id="vbar-full"></div>
+          </div>
+        </div>
+        <div class="vram-row">
+          <div class="vram-info">
+            <span class="vram-name">LoRA 微调（消费级显卡）</span>
+            <span class="vram-val" style="color: var(--accent-green)">16 GB</span>
+          </div>
+          <div class="vram-bar-wrap">
+            <div class="vram-bar lora-vram" id="vbar-lora"></div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px; margin-bottom: 0; font-family: var(--font-code);">
+        * 以 7B 参数模型、FP16 精度、批大小 1 为基准估算
+      </p>
+    </div>
+
+    <!-- Sub-section 1.1 -->
+    <div id="sec1-1" class="reveal">
+      <h3 class="sub-heading">全参数微调</h3>
+      <p>全参数微调，顾名思义，要求模型内部所有的权重参数都参与反向传播的计算与数值更新。在显卡的显存中，这一过程会产生极其庞大的数据堆积。</p>
+    </div>
+
+    <div class="info-card reveal">
+      <h4 class="sub-heading-2">1. 静态参数与激活值的显存占用</h4>
+      <p>首先，模型自身的数十亿个基础参数需要被完整地加载到显存中。以一个标准的 <span class="hl">70 亿参数（7B）</span>模型为例，如果使用 <span class="hl">16 位浮点数精度（FP16）</span>存储，仅这些静态参数本身就会占据约 <span class="hl-danger">14GB</span> 的物理显存。</p>
+      <p>其次，在数据进行前向传播计算时，为了能够在后续准确执行反向传播，显卡必须将每一层计算产生的巨大中间结果（称为<span class="hl">"激活值"</span>）全部临时存储在显存中。这部分的显存占用量会随着输入文本的长度呈<span class="hl-danger">指数级增长</span>。</p>
+    </div>
+
+    <div class="info-card reveal">
+      <h4 class="sub-heading-2">2. 梯度矩阵的显存翻倍</h4>
+      <p>在全参数微调中，系统需要为模型中的<span class="hl">每一个</span>参与更新的参数计算出一个对应的梯度。如果模型有 70 亿个参数，显卡就必须在显存中开辟出<span class="hl-danger">与原参数矩阵完全一样大</span>的新空间，专门用于存放这些梯度数值。这直接导致显存需求在原有基础上再次<span class="hl-danger">翻倍</span>。</p>
+    </div>
+
+    <div class="info-card reveal">
+      <h4 class="sub-heading-2">3. 优化器状态的巨大消耗</h4>
+      <p>现代深度学习通常采用复杂的优化器（如 Adam），它们不仅需要当前的梯度，还需要记录每一个参数在过去多次计算中的<span class="hl">历史梯度信息</span>。对于每一个参数，优化器通常需要额外存储<span class="hl-danger">两个甚至更多</span>的高精度浮点数状态变量。</p>
+      <p>综合来看，一个原本只需 14GB 显存即可勉强运行对话的 7B 模型，如果进行全参数微调，其显存峰值需求往往会飙升至 <span class="hl-danger">60GB 甚至 80GB 以上</span>。这就要求必须使用多张极其昂贵的顶级企业级显卡（如 NVIDIA A100 或 H100）才能完成计算。</p>
+    </div>
+
+    <!-- Sub-section 1.2 -->
+    <div id="sec1-2" class="reveal">
+      <h3 class="sub-heading">本征维度</h3>
+      <p>面对全参数微调对物理资源的极端挑战，研究视角重新回归数学底层逻辑，并提出了一个核心工程假设：</p>
+
+      <div class="info-card gold reveal">
+        <p style="margin: 0; font-size: 16px; color: var(--accent-gold); font-weight: 500;">
+          大型语言模型在执行特定任务的微调时，其参数更新其实存在一个极低的"本征维度"。
+        </p>
+      </div>
+
+      <p>"本征维度"可以理解为：<span class="hl">真正有效、起作用的变化方向有多少个</span>。</p>
+      <p>你看到的大模型可能有几十亿个参数，但在实际做某个具体任务时，并不需要在所有这些参数上都做复杂调整。<span class="hl">真正影响模型性能提升的，只是其中一小部分"关键方向"。</span></p>
+
+      <div class="info-card green reveal">
+        <p style="margin: 0;"><span class="hl-green">类比理解：</span>想象你在调一个复杂的音响系统，面板上有 <span class="hl">1000个旋钮（参数）</span>，但实际上，只需要调 <span class="hl-green">5~10个关键旋钮</span>，就能让音质明显变好。这 5~10 个关键旋钮的数量，就类似"本征维度"。</p>
+      </div>
+
+      <p>这就引出了 LoRA 的核心架构设计：既然绝大部分的参数修改是冗余的，我们完全可以绕开那个庞大的原始矩阵，用一种维度极低的数学结构来精确模拟这种微小的参数变化。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================
+     SECTION 2: LoRA 的核心物理架构
+     ============================================ -->
+<section id="sec2" class="section-wrapper">
+  <div class="section-content">
+    <div class="section-num reveal">CHAPTER 02</div>
+    <h2 class="section-heading reveal">LoRA 的核心<span class="accent">物理架构</span></h2>
+
+    <div class="reveal">
+      <p>基于本征维度的发现，LoRA 技术在显存中构建了一套全新的并行计算网络。它的物理架构主要由两个截然不同的操作步骤组成。</p>
+    </div>
+
+    <!-- LoRA Architecture Animation -->
+    <div class="anim-container reveal" id="anim-lora">
+      <div class="anim-header">
+        <span class="anim-title">LoRA 双路计算架构</span>
+        <button class="replay-btn" id="replay-lora">↺ 重播</button>
+      </div>
+      <svg id="lora-canvas"></svg>
+      <div style="display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff6b9d; box-shadow: 0 0 6px #ff6b9d;"></div>
+          <span style="font-size: 12px; color: var(--text-muted); font-family: var(--font-code);">主干路（冻结）</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #06d6a0; box-shadow: 0 0 6px #06d6a0;"></div>
+          <span style="font-size: 12px; color: var(--text-muted); font-family: var(--font-code);">LoRA 旁路（可训练）</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #b8a9ff; box-shadow: 0 0 6px #b8a9ff;"></div>
+          <span style="font-size: 12px; color: var(--text-muted); font-family: var(--font-code);">叠加输出</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-section 2.1 -->
+    <div id="sec2-1" class="reveal">
+      <h3 class="sub-heading">基础参数的绝对冻结</h3>
+      <p>当基座模型加载到显存后，系统首先执行的第一条指令就是"冻结"原始模型内部所有的基础参数。</p>
+      <p>在物理计算层面上，<span class="hl">"冻结"</span>意味着系统明确切断了误差向这些原始参数传递的计算路径。在随后的所有反向传播过程中，显卡<span class="hl-danger">不再</span>为这数百亿个基础参数计算梯度，也不再存储它们的历史梯度和优化器状态。</p>
+      <p>这一简单的物理阻断操作，直接将微调过程中最庞大的显存开销（梯度矩阵和优化器状态矩阵）<span class="hl-green">瞬间清零</span>。被冻结的基础参数在微调过程中，仅仅作为固定的数据通道参与前向传播，其自身的浮点数值从始至终<span class="hl">绝对不会发生任何改变</span>。</p>
+    </div>
+
+    <!-- Sub-section 2.2 -->
+    <div id="sec2-2" class="reveal">
+      <h3 class="sub-heading">附加参数模块的注入</h3>
+      <p>在彻底冻结了庞大的主体结构后，系统会在原有的网络层旁边，额外并联添加一个极小规模的<span class="hl">"附加参数模块"</span>。</p>
+      <p>这个附加模块是全新生成的。它的核心特征在于采用了<span class="hl">两个具有极端不对称形状的小型矩阵</span>进行乘法组合。在随后的微调训练阶段，显卡的全部算力、所有的误差反向传播计算以及最终的数值修改，将 <span class="hl-green">100% 集中</span>在这两个额外添加的小型矩阵上。</p>
+    </div>
+
+    <!-- Sub-section 2.3 -->
+    <div id="sec2-3" class="reveal">
+      <h3 class="sub-heading">降维与升维：低秩矩阵的数学拆解</h3>
+      <p>LoRA 运用了线性代数中的<span class="hl">矩阵分解技术</span>，即通过降维和升维的两次连续计算，来替代原始的庞大计算。</p>
+
+      <p>假设模型原始的某个被冻结的权重矩阵 <strong>W</strong>，它的物理形状是 4096 × 4096，总计拥有 <span class="hl-danger">16,777,216</span> 个浮点数参数。</p>
+    </div>
+
+    <!-- Matrix visual -->
+    <div class="matrix-visual reveal">
+      <div class="matrix-box">
+        <div class="matrix-rect" style="width: 90px; height: 90px; opacity: 0.5;">W</div>
+        <div class="matrix-label">原始权重矩阵</div>
+        <div class="matrix-params" style="color: var(--accent-danger);">4096 × 4096</div>
+        <div class="matrix-params" style="color: var(--text-muted);">16,777,216 参数</div>
+      </div>
+
+      <div class="matrix-op" style="color: var(--accent-primary);">≈</div>
+
+      <div class="matrix-box">
+        <div class="matrix-rect" style="width: 24px; height: 90px;">A</div>
+        <div class="matrix-label">降维矩阵 A</div>
+        <div class="matrix-params">4096 × 8</div>
+        <div class="matrix-params" style="color: var(--accent-green);">32,768 参数</div>
+      </div>
+
+      <div class="matrix-op">×</div>
+
+      <div class="matrix-box">
+        <div class="matrix-rect" style="width: 90px; height: 24px;">B</div>
+        <div class="matrix-label">升维矩阵 B</div>
+        <div class="matrix-params">8 × 4096</div>
+        <div class="matrix-params" style="color: var(--accent-green);">32,768 参数</div>
+      </div>
+    </div>
+
+    <!-- Formula -->
+    <div class="formula-box reveal">
+      <div class="formula">ΔW = B × A &nbsp;|&nbsp; W' = W + ΔW</div>
+    </div>
+
+    <!-- Parameter animation -->
+    <div class="anim-container reveal" id="anim-params">
+      <div class="anim-header">
+        <span class="anim-title">参数量对比（秩 r = 8）</span>
+        <button class="replay-btn" id="replay-params">↺ 重播</button>
+      </div>
+      <div class="param-chart">
+        <div class="param-row">
+          <div class="param-label">全参数微调 ΔW</div>
+          <div class="param-bar-wrap">
+            <div class="param-bar full" id="bar-full"></div>
+          </div>
+          <div class="param-count" id="num-full" style="color: var(--accent-danger);">0</div>
+        </div>
+        <div class="param-row">
+          <div class="param-label">LoRA (A+B)</div>
+          <div class="param-bar-wrap">
+            <div class="param-bar lora" id="bar-lora"></div>
+          </div>
+          <div class="param-count" id="num-lora" style="color: var(--accent-green);">0</div>
+        </div>
+      </div>
+      <div style="margin-top: 12px; font-family: var(--font-code); font-size: 12px; color: var(--accent-green);">
+        参数压缩比：<span class="hl-green">99.6%</span> ↓ &nbsp;|&nbsp; 单层从 16,777,216 → 65,536 个参数
+      </div>
+    </div>
+
+    <div class="reveal">
+      <p>相比于全参数微调需要计算和存储的 <span class="hl-danger">1677 万</span>个参数，LoRA 将实际需要计算的参数量急剧缩减了 <span class="hl-green">99.6%</span> 以上。这让普通企业甚至个人开发者，依靠单张家用级的中高端显卡（如 RTX 3090 或 4090），就能顺利完成百亿参数规模大模型的微调计算。</p>
+    </div>
+
+    <!-- Sub-section 2.4 -->
+    <div id="sec2-4" class="reveal">
+      <h3 class="sub-heading">训练阶段的双路数据流转</h3>
+
+      <h4 class="sub-heading-2">1. 前向传播：分流与汇总</h4>
+      <p>当代表输入文本的高维向量到达模型的某一个计算层时，数据流会在物理层面被一分为二：</p>
+      <ul class="content-list">
+        <li><span class="hl-danger">主干路计算：</span>输入向量穿过被完全冻结的原始矩阵 W，进行一次巨大的矩阵乘法，得出一个包含 4096 个数值的<span class="hl">基线结果向量</span>。</li>
+        <li><span class="hl-green">旁路计算（LoRA 模块）：</span>同一个输入向量同步进入 LoRA 的附加模块。首先与降维矩阵 A 相乘，被压缩成 8 个数值；紧接着与升维矩阵 B 相乘，重新膨胀回包含 4096 个数值的<span class="hl">调整向量</span>。</li>
+        <li><span class="hl" style="color: var(--accent-secondary);">向量叠加：</span>系统将主干路产生的"基线结果向量"与旁路产生的"调整向量"进行简单的<span class="hl">对应位置数值相加</span>，作为最终计算结果继续向模型的下一层传递。</li>
+      </ul>
+
+      <h4 class="sub-heading-2">2. 反向传播：精准定位修改</h4>
+      <p>由于主干路的原始矩阵 W 被设置了"冻结"指令，误差信号在传递到这里时会被<span class="hl-danger">直接阻断</span>，不会产生任何梯度计算。</p>
+      <p>所有的误差信号和梯度计算算力，将全部精准地导入到那两条旁路分支中。优化器算法仅仅根据误差，极其迅速地计算出如何微调矩阵 A 和矩阵 B 中那区区 <span class="hl-green">6.5 万</span>个浮点数的数值。</p>
+    </div>
+
+    <!-- Sub-section 2.5 -->
+    <div id="sec2-5" class="reveal">
+      <h3 class="sub-heading">部署阶段的物理合并机制</h3>
+      <p>当所有数据的训练循环宣告结束，在我们的硬盘上，除了原本的基座大模型文件外，还会额外生成一个体积非常小的文件，这个文件专门存储了训练好的所有矩阵 A 和矩阵 B 的最终数值，在工程上被称为<span class="hl">"LoRA 权重文件"</span>。</p>
+
+      <p>为了避免推理延迟，在正式部署前，我们需要执行一个关键的物理操作：<span class="hl">模型权重合并</span>。</p>
+
+      <div class="formula-box reveal">
+        <div class="formula" style="font-size: 17px;">A (4096×8) × B (8×4096) → ΔW (4096×4096)</div>
+        <div style="margin-top: 12px; color: var(--text-muted); font-size: 13px; font-family: var(--font-code);">W_new = W_frozen + ΔW</div>
+      </div>
+
+      <div class="info-card green reveal">
+        <h4 class="sub-heading-2">合并带来的架构复原</h4>
+        <p>完成加法覆写后，物理层面上的 LoRA 旁路模块（矩阵 A 和矩阵 B）被彻底销毁和移除。合并后的新模型在物理结构和层级数量上，与微调前最初始的基座模型<span class="hl-green">完全一模一样</span>，没有任何额外的旁路分支。</p>
+        <p style="margin-bottom: 0;">这种合并机制带来了极为重要的工程优势：微调后的模型在实际运行时，其计算复杂度和文本生成速度与原始基座模型<span class="hl-green">完全一致</span>，不存在任何因为微调而增加的性能损耗。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================
+     SECTION 3: 搭建本地微调运行环境
+     ============================================ -->
+<section id="sec3" class="section-wrapper">
+  <div class="section-content">
+    <div class="section-num reveal">CHAPTER 03</div>
+    <h2 class="section-heading reveal">搭建本地微调<span class="accent">运行环境</span></h2>
+
+    <div class="reveal">
+      <p>在掌握了 LoRA 这种通过引入低维度旁路矩阵来降低算力消耗的高效微调架构之后，我们已经可以在消费级显卡上搭建起微调的运行环境，环境包括硬件环境和软件环境。</p>
+    </div>
+
+    <!-- Sub-section 3.1 -->
+    <div id="sec3-1" class="reveal">
+      <h3 class="sub-heading">CUDA 运行时的验证与环境映射</h3>
+      <p>硬件就不多说了，显存越大越好，显卡越高端越好，建议至少 <span class="hl">16G 显存</span>。</p>
+      <p><span class="hl">CUDA</span> 是由 NVIDIA（英伟达）推出的一种<span class="hl">并行计算平台和编程模型</span>。在如今的大模型微调和训练中，CUDA 几乎是不可或缺的底层基础设施。简单来说，它是一座桥梁，让我们能够直接利用 NVIDIA GPU 的强大算力，去解决复杂的通用计算问题。</p>
+      <p>打开 Windows 终端，输入以下命令查看 CUDA 版本：</p>
+    </div>
+
+    <div class="code-block reveal" data-lang="shell">
+      <code><span class="cmd">nvidia-smi</span></code>
+    </div>
+
+    <div class="info-card reveal">
+      <p style="margin: 0;">在输出的表格右上角会显示 <span class="hl">CUDA Version: 13.x</span>。需要注意，此处显示的是显卡驱动程序支持的最高 CUDA 版本，最低不能低于 <span class="hl-danger">12.6 版本</span>，因为我们使用的深度学习框架 PyTorch 支持的最低 CUDA 版本是 12.6。</p>
+    </div>
+
+    <!-- Sub-section 3.2 -->
+    <div id="sec3-2" class="reveal">
+      <h3 class="sub-heading">基于 UV 的 Python 隔离环境构建</h3>
+      <p>Python 是深度学习的最佳语言，因此为了避免不同项目之间产生的依赖库冲突，必须为微调任务构建完全独立的虚拟环境。</p>
+      <p><span class="hl">uv</span> 是一个由 Rust 语言编写的极速 Python 包和环境管理器。与传统的 pip 或 conda 相比，uv 能够并发解析依赖树，其环境创建和包安装速度有数量级的提升。</p>
+    </div>
+
+    <div class="step-list reveal">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">新建工作目录</div>
+          <p>在硬盘的根目录或工作目录下，新建一个专门用于微调的文件夹（例如 <span class="hl" style="font-family: var(--font-code)">D:\LLM_Workspace</span>）。</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">创建并激活虚拟环境</div>
+          <div class="code-block" data-lang="shell">
+            <code><span class="comment"># 创建虚拟环境</span>
+<span class="cmd">uv venv</span>
+
+<span class="comment"># 激活环境（Windows）</span>
+<span class="cmd">.venv\Scripts\activate</span></code>
+          </div>
+          <p>当命令行提示符前出现 <span class="hl">(LLM_Workspace)</span> 字样时，表明系统已成功切入该隔离环境。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-section 3.3 -->
+    <div id="sec3-3" class="reveal">
+      <h3 class="sub-heading">深度学习框架 PyTorch 安装</h3>
+      <p><span class="hl">PyTorch</span> 是整个微调系统的核心计算框架，它向下负责调用 CUDA 与显卡进行通信，向上为微调工具提供 Python 操作接口。</p>
+      <p>前往 <span class="hl" style="font-family: var(--font-code)">pytorch.org</span>，选择适合您 CUDA 版本的安装命令。以下以 CUDA 13.0 为例：</p>
+    </div>
+
+    <div class="code-block reveal" data-lang="shell">
+      <code><span class="cmd">uv pip install</span> torch torchvision <span class="flag">--index-url</span> <span class="str">https://download.pytorch.org/whl/cu130</span></code>
+    </div>
+
+    <div class="reveal">
+      <p>uv 会自动解析环境、下载并安装核心包。由于 uv 采用了<span class="hl">全局缓存机制</span>，如果后续在其他文件夹重新建立虚拟环境并安装相同的包，无需重新下载。</p>
+    </div>
+
+    <!-- Sub-section 3.4 -->
+    <div id="sec3-4" class="reveal">
+      <h3 class="sub-heading">测试环境</h3>
+      <p>完成上述所有配置后，需要通过一段 Python 代码进行一次测试，以验证硬件、驱动、加速库和框架之间的数据通路是否已完全打通。</p>
+    </div>
+
+    <div class="code-block reveal" data-lang="Python">
+      <code><span class="kw">import</span> torch
+
+<span class="comment"># 1. 验证 PyTorch 是否成功探测到底层 CUDA 驱动</span>
+<span class="cmd">print</span>(<span class="str">"CUDA Available:"</span>, torch.cuda.is_available())
+
+<span class="comment"># 2. 验证是否准确识别到当前的物理显卡型号</span>
+<span class="cmd">print</span>(<span class="str">"Device Name:"</span>, torch.cuda.get_device_name(<span class="flag">0</span>))
+
+<span class="comment"># 3. 验证显卡的硬件计算能力架构</span>
+<span class="cmd">print</span>(<span class="str">"Compute Capability:"</span>, torch.cuda.get_device_capability(<span class="flag">0</span>))
+
+<span class="comment"># 4. 验证 BF16 (BFloat16) 数据类型的硬件原生支持</span>
+<span class="comment"># 这是进行高效大模型微调的关键特性</span>
+<span class="cmd">print</span>(<span class="str">"BF16 Support:"</span>, torch.cuda.is_bf16_supported())</code>
+    </div>
+
+    <div class="code-block reveal" data-lang="shell">
+      <code><span class="cmd">python</span> .\test.py</code>
+    </div>
+
+    <div class="info-card green reveal">
+      <p style="margin: 0;">如果所有输出均返回预期结果（即 <span class="hl-green">CUDA Available: True</span>，Device Name 准确显示显卡型号，且 <span class="hl-green">BF16 Support: True</span>），则证明系统已具备运行微调的标准条件。</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================
+     SECTION 4: 部署 LLaMA-Factory
+     ============================================ -->
+<section id="sec4" class="section-wrapper">
+  <div class="section-content">
+    <div class="section-num reveal">CHAPTER 04</div>
+    <h2 class="section-heading reveal">部署 <span class="accent">LLaMA-Factory</span></h2>
+
+    <!-- Sub-section 4.1 -->
+    <div id="sec4-1" class="reveal">
+      <h3 class="sub-heading">什么是 LLaMA-Factory</h3>
+      <p>大语言模型的微调是一个极其复杂的工程过程，涉及海量矩阵的梯度计算、优化器状态的显存调度、并行计算的数据切分等。<span class="hl">LLaMA-Factory</span>（大模型微调工厂）是一个高度集成的<span class="hl">全栈式微调工程框架</span>，它改变了以往需要手动编写成百上千行 Python 脚本的现状。</p>
+    </div>
+
+    <div class="stagger reveal">
+      <div class="info-card">
+        <h4 class="sub-heading-2">底层算子与高级库的封装整合</h4>
+        <p>LLaMA-Factory 在底层严格依赖 PyTorch 框架，并在其上无缝集成了 Hugging Face 生态系统中最核心的四个开源组件：</p>
+        <div class="tag-row">
+          <span class="tag">transformers</span>
+          <span class="tag">peft</span>
+          <span class="tag">trl</span>
+          <span class="tag">accelerate</span>
+        </div>
+        <ul class="content-list">
+          <li><span class="hl" style="font-family: var(--font-code)">transformers：</span>负责加载各类开源模型（Llama、Qwen、ChatGLM 等）的标准网络结构与权重文件。</li>
+          <li><span class="hl" style="font-family: var(--font-code)">peft：</span>提供 LoRA、QLoRA 等参数高效微调算法的标准数学实现。</li>
+          <li><span class="hl" style="font-family: var(--font-code)">trl：</span>提供针对大模型的强化学习对齐算法（如 PPO、DPO）实现。</li>
+          <li><span class="hl" style="font-family: var(--font-code)">accelerate：</span>负责处理张量在 CPU 内存与 GPU 显存之间的物理调度与设备映射。</li>
+        </ul>
+      </div>
+
+      <div class="info-card">
+        <h4 class="sub-heading-2">可视化交互界面（Web UI）</h4>
+        <p>通过集成 Gradio 库，LLaMA-Factory 提供了一个运行在浏览器中的图形化用户界面。开发者可以在网页上通过可视化操作，设定所有复杂的微调超参数，极大地降低了人工编写配置文件的错误率。</p>
+      </div>
+
+      <div class="info-card">
+        <h4 class="sub-heading-2">全链路流程覆盖</h4>
+        <p>该框架还集成了数据集预处理、模型离线评估、多重权重合并以及直接的对话推理测试（Chat）。它将大模型开发生命周期中的各个离散步骤，统一到了一个工程目录下。</p>
+      </div>
+    </div>
+
+    <!-- Sub-section 4.2 -->
+    <div id="sec4-2" class="reveal">
+      <h3 class="sub-heading">配置与安装</h3>
+    </div>
+
+    <div class="step-list reveal">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">使用 Git 获取项目源码</div>
+          <p>切换到工作目录，执行命令克隆 LLaMA-Factory 完整的代码仓库：</p>
+          <div class="code-block" data-lang="shell">
+            <code><span class="cmd">git clone</span> <span class="str">https://github.com/hiyouga/LLaMA-Factory.git</span>
+<span class="cmd">cd</span> LLaMA-Factory</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">使用 uv 执行可编辑模式安装</div>
+          <div class="code-block" data-lang="shell">
+            <code><span class="comment"># 初始化虚拟环境</span>
+<span class="cmd">uv venv</span>
+<span class="comment"># 安装依赖</span>
+<span class="cmd">uv pip install</span> <span class="flag">-e</span> .
+<span class="cmd">uv pip install</span> <span class="flag">-r</span> requirements/metrics.txt</code>
+          </div>
+          <ul class="content-list">
+            <li><span class="hl" style="font-family: var(--font-code)">.</span>：指当前目录，告诉 uv 去读取当前目录下的 pyproject.toml 文件来获取依赖列表。</li>
+            <li><span class="hl" style="font-family: var(--font-code)">metrics</span>：包含了一些计算评估指标所需的数学统计库。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">安装 GPU 版 PyTorch（Windows）</div>
+          <div class="code-block" data-lang="shell">
+            <code><span class="comment"># 卸载已安装的非 Windows 版本 PyTorch</span>
+<span class="cmd">uv pip uninstall</span> torch torchvision torchaudio
+<span class="comment"># 重新安装 Windows CUDA 版本</span>
+<span class="cmd">uv pip install</span> torch torchvision <span class="flag">--index-url</span> <span class="str">https://download.pytorch.org/whl/cu130</span>
+
+<span class="comment"># 激活环境</span>
+<span class="cmd">.venv\Scripts\activate</span>
+<span class="comment"># 验证 torch 是否可用</span>
+<span class="cmd">python</span> <span class="flag">-c</span> <span class="str">"import torch; print(torch.cuda.is_available())"</span></code>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">环境校验</div>
+          <div class="code-block" data-lang="shell">
+            <code><span class="comment"># 验证 LLaMA-Factory 版本</span>
+<span class="cmd">llamafactory-cli</span> version
+<span class="comment"># 或使用 uv</span>
+<span class="cmd">uv run llamafactory-cli</span> version</code>
+          </div>
+          <p>如果终端返回了 LLaMA-Factory 的当前版本号，且没有抛出任何异常，则说明框架依赖项都配置完成。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-section 4.3 -->
+    <div id="sec4-3" class="reveal">
+      <h3 class="sub-heading">运行基础推理</h3>
+      <p>在正式微调前，我们必须通过工具界面的"Chat"功能，进行一次基础的基准推理测试。</p>
+    </div>
+
+    <div class="step-list reveal">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">下载模型</div>
+          <p>使用参数量较小的模型：<span class="hl">Qwen3.5-4B</span>（40 亿参数，模型文件 9G 左右）。魔搭是国内社区，下载速度较快：</p>
+          <div class="code-block" data-lang="shell">
+            <code><span class="cmd">git clone</span> <span class="str">https://www.modelscope.cn/Qwen/Qwen3.5-4B.git</span></code>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">配置模型推理</div>
+          <p>打开 <span class="hl" style="font-family: var(--font-code)">LlamaFactory\examples\inference</span>，复制一个 Qwen3 的配置文件，修改为 <span class="hl" style="font-family: var(--font-code)">qwen3_5.yaml</span>：</p>
+          <div class="code-block" data-lang="yaml">
+            <code>model_name_or_path: <span class="str">E:\Data\Qwen3.5-4B</span>
+template: <span class="str">qwen3_5</span></code>
+          </div>
+          <div class="kv-grid">
+            <div class="kv-key">model_name_or_path</div>
+            <div class="kv-val">模型名称或指向模型的本地绝对路径，可填写 huggingface/modelscope 标准名称（会自动下载）或本地路径。</div>
+            <div class="kv-key">template</div>
+            <div class="kv-val">模型问答时所使用的提示模板，不同模型不同，<strong style="color: var(--accent-danger);">必须正确设置</strong>，否则会出现回答奇怪或重复生成等现象。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">启动 Web 聊天界面</div>
+          <div class="code-block" data-lang="shell">
+            <code><span class="cmd">uv run llamafactory-cli</span> webchat .\examples\inference\qwen3_5.yaml</code>
+          </div>
+          <p>后端服务器成功启动后会自动打开浏览器。输入"请解释一下什么是深度学习。"进行测试。</p>
+          <p>如果能看到模型流畅地、逐字地在界面上输出合理的科普解释，并且 GPU 负载率产生明显波动，这说明从 Python 前端指令到 GPU 运算的<span class="hl-green">整个链路通过验证</span>。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================
+     SECTION 5: LLaMA-Factory 工作台介绍
+     ============================================ -->
+<section id="sec5" class="section-wrapper">
+  <div class="section-content">
+    <div class="section-num reveal">CHAPTER 05</div>
+    <h2 class="section-heading reveal"><span class="accent">LLaMA-Factory</span> 工作台介绍</h2>
+
+    <div class="reveal">
+      <p>现在，我们可以启动 LLaMA-Factory 的 Web 工作台：</p>
+    </div>
+
+    <div class="code-block reveal" data-lang="shell">
+      <code><span class="cmd">uv run llamafactory-cli</span> webui</code>
+    </div>
+
+    <div class="reveal">
+      <p>如果可以正常打开，说明 LLaMA-Factory 在本地 Windows 环境中的部署就完成了。工作台界面上的设置项涵盖了从模型加载、数据准备到训练超参数配置的全过程。</p>
+    </div>
+
+    <!-- Sub-section 5.1 -->
+    <div id="sec5-1" class="reveal">
+      <h3 class="sub-heading">基础模型与来源设置</h3>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">语言</div>
+      <div class="kv-val">WebUI 界面的显示语言，可以选择中文 (zh)。</div>
+      <div class="kv-key">模型名称</div>
+      <div class="kv-val">想要微调的基座模型，来自魔搭或 Hugging Face，可以自动下载。</div>
+      <div class="kv-key">模型路径</div>
+      <div class="kv-val">如果已经把模型下载到了本地，可以直接填模型的本地绝对路径。</div>
+      <div class="kv-key">模型下载源</div>
+      <div class="kv-val">决定从哪里拉取模型权重文件。国内用户通常选择 <span class="hl">modelscope</span>（魔搭社区）以获得更快的下载速度。</div>
+    </div>
+
+    <!-- Sub-section 5.2 -->
+    <div id="sec5-2" class="reveal">
+      <h3 class="sub-heading">微调核心策略</h3>
+      <p>微调方法决定如何训练模型，可以选择以下四种方法：</p>
+    </div>
+
+    <table class="compare-table reveal">
+      <thead>
+        <tr>
+          <th>方法</th>
+          <th>全称</th>
+          <th>显存需求</th>
+          <th>推荐场景</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag gold">lora</span></td>
+          <td>低秩适配微调</td>
+          <td style="color: var(--accent-green);">低（单卡可行）</td>
+          <td>推荐首选，生态最完善</td>
+        </tr>
+        <tr>
+          <td><span class="tag">freeze</span></td>
+          <td>冻结微调</td>
+          <td style="color: var(--accent-gold);">中（介于 LoRA 和 Full 之间）</td>
+          <td>比全量微调节省显存和计算时间</td>
+        </tr>
+        <tr>
+          <td><span class="tag">oft</span></td>
+          <td>正交微调</td>
+          <td style="color: var(--accent-gold);">中</td>
+          <td>减少灾难性遗忘，逻辑连贯性强的任务</td>
+        </tr>
+        <tr>
+          <td><span class="tag" style="color: var(--accent-danger); border-color: rgba(255,77,109,0.3); background: rgba(255,77,109,0.08)">full</span></td>
+          <td>全量参数微调</td>
+          <td style="color: var(--accent-danger);">极高（多卡集群）</td>
+          <td>资源充足时的最优精度</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="info-card gold reveal">
+      <p style="margin: 0;"><span class="hl-gold">推荐策略：</span>LoRA 依然是目前性价比最高、生态最完善、最推荐的新手首选方案。适用于在尝试 LoRA 后发现模型出现了严重的知识遗忘时，可以尝试使用 OFT。</p>
+    </div>
+
+    <div class="reveal" style="margin-top: 20px;">
+      <p><span class="hl">检查点路径：</span>如果之前训练过一半中断了，或者想在一个已经微调过的 LoRA 权重上继续训练，可以在这里选择之前的检查点。</p>
+    </div>
+
+    <!-- Sub-section 5.3 -->
+    <div id="sec5-3" class="reveal">
+      <h3 class="sub-heading">模型量化与底层配置</h3>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">量化等级</div>
+      <div class="kv-val">降低模型权重的精度以节省显存（例如 8-bit 或 4-bit）。配合 LoRA 使用就叫 <span class="hl">QLoRA</span>。选 <code style="font-family: var(--font-code); color: var(--accent-gold)">none</code> 代表不量化，加载全精度模型。</div>
+      <div class="kv-key">量化方法</div>
+      <div class="kv-val">如果启用了量化，这里选择量化算法，通常是 <span class="hl" style="font-family: var(--font-code)">bnb</span>。</div>
+      <div class="kv-key">对话模板</div>
+      <div class="kv-val"><span class="hl-danger">非常重要。</span>不同的模型有不同的对话格式。必须选择与你当前模型匹配的模板，否则训练出来的模型会胡言乱语。</div>
+      <div class="kv-key">RoPE 插值方法</div>
+      <div class="kv-val">用于扩展模型的上下文窗口（让模型能处理比原设定更长的文本）。none 表示不扩展。</div>
+      <div class="kv-key">加速方式</div>
+      <div class="kv-val">底层加速技术。选 <span class="hl">auto</span> 会让系统根据显卡自动选择最优的加速方案，能显著提升训练速度并降低显存。</div>
+    </div>
+
+    <!-- Sub-section 5.4 -->
+    <div id="sec5-4" class="reveal">
+      <h3 class="sub-heading">训练</h3>
+      <p>Train 标签页是执行模型微调的核心界面。</p>
+
+      <h4 class="sub-heading-2">训练阶段</h4>
+      <ul class="content-list">
+        <li><span class="hl">SFT（监督微调）：</span>也叫指令微调。这是最常见的微调方式，通过"问答对"教会模型如何按照你的预期回答问题，我们一直讲的微调就是指这种指令微调。</li>
+        <li><span class="hl">Pre-Training（增量预训练）：</span>当需要让模型掌握某个垂直领域的全新知识体系，且这些知识在模型原本的预训练语料中极少时使用。它的目的是注入基础知识，而不是教模型如何对话。需要海量的无标注纯文本（如文章、书籍、代码库）。</li>
+        <li><span class="hl">Reward Modeling / PPO / DPO / KTO：</span>这几个都是和强化学习相关的方法，适用于对齐模型偏好。</li>
+      </ul>
+
+      <h4 class="sub-heading-2">数据配置</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">数据路径</div>
+      <div class="kv-val">存放训练数据集配置文件的本地文件夹，默认是 LlamaFactory 项目中的 data 目录。</div>
+      <div class="kv-key">数据集</div>
+      <div class="kv-val">下拉菜单会列出数据路径中配置好的所有数据集，LlamaFactory 项目提供了一些样例数据。</div>
+      <div class="kv-key">预览数据集</div>
+      <div class="kv-val">点击后可以查看处理后的数据格式，方便检查数据是否被正确解析。</div>
+    </div>
+
+    <div id="sec5-4-exec" class="reveal">
+      <h4 class="sub-heading-2">执行与配置管理</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">预览命令</div>
+      <div class="kv-val">点击后会弹出一个窗口，显示当前 GUI 界面所有设置翻译成的底层命令行代码。</div>
+      <div class="kv-key">保存训练参数</div>
+      <div class="kv-val">将当前页面所有的设置项保存为一个 .yaml 格式的配置文件，以便后续复用，确保实验的可重复性。</div>
+      <div class="kv-key">载入训练参数</div>
+      <div class="kv-val">读取之前保存的 .yaml 配置文件，一键恢复所有的页面设置。</div>
+      <div class="kv-key">开始 / 中断</div>
+      <div class="kv-val">启动训练任务或强制停止当前正在运行的训练进程。</div>
+    </div>
+
+    <div class="reveal">
+      <h4 class="sub-heading-2">路径与分布式训练设置</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">输出目录</div>
+      <div class="kv-val">定义本次训练完成后，模型权重和训练日志在本地磁盘上的保存文件夹名称。默认使用当前时间戳命名以防覆盖旧数据。</div>
+      <div class="kv-key">设备数量</div>
+      <div class="kv-val">指定用于本次训练的 GPU 数量。设置为 1 即为单卡训练。</div>
+      <div class="kv-key">DeepSpeed stage</div>
+      <div class="kv-val">DeepSpeed 是微软开源的分布式训练优化库。当使用多张显卡时，可以将优化器状态、梯度和模型参数切片并分散到不同的显卡上，从而打破单卡显存限制。此处选 none 表示不启用。</div>
+      <div class="kv-key">使用 offload</div>
+      <div class="kv-val">勾选此项后，系统会将部分 GPU 显存中的计算和数据卸载到系统内存中。这能显著降低 GPU 显存占用，但由于 PCIe 带宽限制，会导致训练速度大幅度下降。</div>
+    </div>
+
+    <!-- Sub-section 5.5 -->
+    <div id="sec5-5" class="reveal">
+      <h3 class="sub-heading">评估与预测</h3>
+      <p><span class="hl">Evaluate & Predict</span> 标签页用来进行评估与预测。在完成模型的微调之后，通过这个标签页，可以让模型对指定的数据集进行批量推理，计算客观的评估指标。</p>
+
+      <h4 class="sub-heading-2">数据来源配置</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">数据路径</div>
+      <div class="kv-val">指定存放评估数据集配置文件的本地文件夹路径。</div>
+      <div class="kv-key">数据集</div>
+      <div class="kv-val">在标准的机器学习流程中，这里必须选择与训练集<span class="hl-danger">不同</span>的数据（即测试集或验证集），以准确评估模型举一反三的泛化能力。</div>
+    </div>
+
+    <div class="reveal">
+      <h4 class="sub-heading-2">文本生成超参数</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">最大生成长度</div>
+      <div class="kv-val">设定模型针对单次输入最多允许生成的 Token 数量。到达此上限后，即便模型未输出结束字符，生成进程也会被强制截断。</div>
+      <div class="kv-key">Top-p 采样值</div>
+      <div class="kv-val">核采样参数。数值越接近 1.0，候选词库越大，输出越多样；数值越低（如 0.1），输出越保守、确定性越强。</div>
+      <div class="kv-key">温度系数</div>
+      <div class="kv-val">调节输出概率分布平滑程度。数值越低，模型越倾向于选择概率最高的词；数值越高，输出的随机性增强。</div>
+    </div>
+
+    <!-- Sub-section 5.6 -->
+    <div id="sec5-6" class="reveal">
+      <h3 class="sub-heading">对话测试</h3>
+      <p><span class="hl">Chat</span> 标签页提供一个图形化的交互界面，允许开发者直接向加载后的模型输入提示词，进行单轮或多轮对话，从而直观地、定性地评估模型微调后的实际回复质量和指令遵循能力。</p>
+
+      <h4 class="sub-heading-2">推理配置参数</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">推理引擎</div>
+      <div class="kv-val">选择用于计算并生成文本的底层软件框架。默认是 <span class="hl">huggingface</span>，还提供了 <span class="hl">vllm</span>（高吞吐量，生成速度更快）和 <span class="hl">sglang</span>（高性能低延迟）等选项。</div>
+      <div class="kv-key">推理数据类型</div>
+      <div class="kv-val">设定模型权重加载到显存时采用的浮点数精度。设定为 auto，系统会自动读取模型配置文件中的默认精度。</div>
+      <div class="kv-key">加载模型</div>
+      <div class="kv-val">点击后，系统会根据页面顶部的模型路径、LoRA 检查点路径以及当前页面的引擎配置，将模型的所有参数正式载入 GPU 显存。</div>
+      <div class="kv-key">卸载模型</div>
+      <div class="kv-val"><span class="hl-danger">必须执行。</span>在完成对话测试后，必须点击此按钮清空显存。否则模型将持续占用显存，导致无法切换回训练或评估页。</div>
+    </div>
+
+    <!-- Sub-section 5.7 -->
+    <div id="sec5-7" class="reveal">
+      <h3 class="sub-heading">导出模型</h3>
+      <p><span class="hl">Export</span> 标签页是 LoRA 微调流程的最后一步。LoRA 微调结束后，系统保存的仅仅是训练过程中产生的<span class="hl">"增量参数"</span>（即 LoRA 适配器权重，通常只有几十到几百 MB）。</p>
+      <p>导出页的核心功能，是将这些微调产生的增量参数与原始的基础模型权重进行<span class="hl">数学上的物理相加</span>，最终打包生成一个完整、独立的新模型权重文件夹。</p>
+
+      <h4 class="sub-heading-2">文件分块与量化配置</h4>
+    </div>
+
+    <div class="kv-grid reveal" style="gap: 14px 24px;">
+      <div class="kv-key">最大分块大小</div>
+      <div class="kv-val">设定单个模型权重文件的最大体积限制。将大文件分割成多个固定大小的片段可以显著提高后续网络传输的稳定性和并发速度。</div>
+      <div class="kv-key">导出量化等级</div>
+      <div class="kv-val">选择 none 保持原始精度；选择 8-bit/4-bit 等会在导出融合的同时对模型进行压缩，大幅减小体积，但伴随轻微的性能损耗。</div>
+      <div class="kv-key">导出设备</div>
+      <div class="kv-val">选 cpu：在内存中进行，速度较慢但不受显存限制；选 auto：尝试调用 GPU 显存加速计算，速度更快。</div>
+      <div class="kv-key">导出目录</div>
+      <div class="kv-val">指定融合后的完整模型在本地计算机上的绝对存储路径。</div>
+    </div>
+
+    <div class="info-card green reveal" style="margin-top: 32px;">
+      <p style="margin: 0; font-size: 14px;"><span class="hl-green">最终成果：</span>一旦模型导出完成，就可以将其脱离 LLaMA Factory 环境，部署到任何支持大语言模型的服务器或本地应用中。导出的模型文件默认采用现代标准的 <span class="hl">.safetensors</span> 格式，零拷贝加载速度极快，且排除了任意代码执行的安全漏洞，是目前的行业标准。</p>
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div style="font-size: 16px; color: var(--accent-primary); margin-bottom: 8px; font-family: var(--font-display); letter-spacing: 0.2em;">大语言模型微调-02</div>
+  <div>LECTURER: ZILOR &nbsp;|&nbsp; AI 班 · 第08课 &nbsp;|&nbsp; 2026</div>
+</footer>
+
+<script src="assets/main.js"></script>
+</body>
+</html>
